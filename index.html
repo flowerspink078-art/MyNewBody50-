@@ -12,11 +12,14 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Исправление для Lucide React (UMD ожидает переменную react с маленькой буквы) -->
+    <script>window.react = window.React;</script>
+    
+    <!-- Lucide React Icons (UMD сборка для предотвращения ошибки #130) -->
+    <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&display=swap');
@@ -31,7 +34,6 @@
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* Плавно скрываем/показываем блоки */
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
@@ -41,6 +43,9 @@
 
     <script type="text/babel">
         const { useState, useEffect, createContext, useContext } = React;
+        
+        // Извлекаем иконки из правильной React-сборки Lucide
+        const LucideIcons = window.lucideReact || window.LucideReact;
         const { 
           Activity, Calendar, ChevronRight, CheckCircle2, 
           Settings, User, Plus, Trash2, Home, Utensils, 
@@ -48,17 +53,19 @@
           Dumbbell, Waves, Coffee, Sparkles, Droplets, Footprints,
           Download, Upload, AlertCircle, Camera, HelpCircle,
           ChevronDown, ChevronUp
-        } = lucide;
+        } = LucideIcons;
 
         // Фирменная палитра VAAYU
         const THEME = {
           bg: '#1F201E',         // VAAYU Deep
+          bgGradientStart: '#1F201E',
+          bgGradientEnd: '#30352F', // Deep Moss
           cardDark: '#292D28',   
           cardLight: '#F3EEE5',  // VAAYU Milk 
           stone: '#DBD6CE',      // VAAYU Stone
-          textMilk: '#F3EEE5',   
+          textMilk: '#F7F3EB',   
           textDark: '#1F201E',   
-          textMuted: '#A3AB96',  // VAAYU Sage (используется для вторичного текста для лучшего контраста, чем просто серый)
+          textMuted: '#A3AB96',  // VAAYU Sage (используется для вторичного текста для лучшего контраста)
           sage: '#A3AB96',       // VAAYU Sage
           gold: '#B89A5A',       // VAAYU Brass
           success: '#71866F',    // Muted Success
@@ -69,14 +76,36 @@
         const VAAYU_LOGO_SVG = (
           <div className="w-12 h-12 rounded-full overflow-hidden shadow-md flex items-center justify-center bg-[#171A19] shrink-0 border border-white/10">
             <svg width="48" height="48" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="250" cy="250" r="250" fill="#171A19"/>
+              <circle cx="250" cy="250" r="250" fill="#1F201E"/>
               <path d="M159.27 131.02C188.75 220.89 213.9 261.27 250 295.27C286.1 261.27 311.25 220.89 340.73 131.02" stroke="#A3AB96" strokeWidth="22" strokeLinecap="round"/>
               <circle cx="250" cy="180" r="42" fill="#A3AB96"/>
               <path d="M188 238C210 274 230 274 252 274C274 274 294 274 316 238" stroke="#A3AB96" strokeWidth="22" strokeLinecap="round"/>
-              <path d="M239 270H261V282H239V270Z" fill="#171A19"/>
-              <path d="M225.5 321C229.17 311.33 238.2 306.5 249.5 306.5C260.8 306.5 269.83 311.33 273.5 321H225.5Z" fill="#171A19"/>
-              <path d="M125 62.5C227.08 -39.58 272.92 -39.58 375 62.5C477.08 164.58 477.08 210.42 375 312.5C273.5 414 227.08 414 125 312.5C22.92 210.42 22.92 164.58 125 62.5Z" stroke="#A3AB96" strokeWidth="12" strokeOpacity="0.15" fill="none"/>
             </svg>
+          </div>
+        );
+
+        const RIR_DESCRIPTION = (
+          <div className="space-y-4 mt-2 text-[18px] text-stone-200">
+            <div className="flex gap-4 items-start">
+              <span className="font-bold text-[24px] min-w-[32px] text-stone-400">4+</span>
+              <span className="pt-1">Могли продолжать довольно долго. Вес лёгкий.</span>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="font-bold text-[24px] min-w-[32px] text-stone-300">3</span>
+              <span className="pt-1">Ещё три чистых повтора точно получились бы.</span>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="font-bold text-[24px] min-w-[32px]" style={{ color: THEME.sage }}>2</span>
+              <span className="font-bold text-[#F7F3EB] pt-1">Ещё два повтора — тяжело, но без потери техники.</span>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="font-bold text-[24px] min-w-[32px]" style={{ color: THEME.warning }}>1</span>
+              <span className="pt-1">Получился бы только один чистый повтор.</span>
+            </div>
+            <div className="flex gap-4 items-start">
+              <span className="font-bold text-[24px] min-w-[32px]" style={{ color: THEME.error }}>0</span>
+              <span className="pt-1">Следующий повтор уже не выполнить — отказ.</span>
+            </div>
           </div>
         );
 
@@ -104,10 +133,10 @@
               {
                 id: 'a1',
                 name: 'Hip Thrust',
-                target: 'Большая ягодичная / Задняя поверхность бедра',
+                target: 'Ягодицы / Задняя поверхность бедра',
                 sets: 4, repsMin: 8, repsMax: 10, restSec: 120, category: 'base',
                 tip: 'Рёбра вниз • таз слегка подкрутить • сжать ягодицы',
-                technique: 'Нижний край лопаток находится на опоре. Стопы примерно на ширине таза. В верхней точке голени близки к вертикали. Поднять таз и слегка сделать задний наклон таза. Задержать сокращение ягодиц примерно на 1 секунду. Опустить таз контролируемо.',
+                technique: 'Нижний край лопаток находится на опоре.\nСтопы примерно на ширине таза.\nВ верхней точке голени близки к вертикали.\nПоднять таз и слегка сделать задний наклон таза.\nЗадержать сокращение ягодиц примерно на 1 секунду.\nОпустить таз контролируемо.',
                 donts: ['Прогиб поясницы', 'Толчок носками', 'Запрокидывание головы'],
                 videoUrl: 'https://www.youtube.com/results?search_query=hip+thrust+bret+contreras+technique',
                 alternatives: [
@@ -120,7 +149,7 @@
                   {
                     name: 'Ягодичный мост с гантелью на полу',
                     desc: 'Свободные веса · более простой домашний вариант',
-                    technique: 'Лежа на полу, колени согнуты. Гантель на тазу, подъем таза вверх с упором на пятки. Задержка в верхней точке на 1 сек.',
+                    technique: 'Лежа на спине на полу, колени согнуты. Гантель на тазу, подъем таза вверх с упором на пятки. Задержка в верхней точке на 1 сек.',
                     videoUrl: 'https://www.youtube.com/results?search_query=dumbbell+glute+bridge+floor'
                   }
                 ]
@@ -131,7 +160,7 @@
                 target: 'Квадрицепс + ягодицы',
                 sets: 3, repsMin: 10, repsMax: 12, restSec: 120, category: 'base',
                 tip: 'Таз прижат • колени по стопам • медленно вниз',
-                technique: 'Таз и крестец прижаты к спинке. Стопы примерно на ширине плеч, чуть выше середины платформы. Колени идут по направлению 2–3 пальца стопы. Опускать платформу только до глубины, при которой таз не начинает подкручиваться. Вверху колени полностью не «защёлкивать».',
+                technique: 'Таз и крестец прижаты к спинке.\nСтопы примерно на ширине плеч, чуть выше середины платформы.\nКолени идут по направлению 2–3 пальца стопы.\nОпускать платформу только до глубины, при которой таз не начинает подкручиваться.\nВверху колени полностью не «защёлкивать».',
                 donts: ['Отрыв таза от спинки', 'Сведение коленей внутрь', 'Резкое бросание веса вниз'],
                 videoUrl: 'https://www.youtube.com/results?search_query=leg+press+technique+jeff+nippard',
                 alternatives: [
@@ -155,7 +184,7 @@
                 target: 'Широчайшие + верх спины',
                 sets: 3, repsMin: 8, repsMax: 12, restSec: 90, category: 'base',
                 tip: 'Плечи вниз → локти к рёбрам',
-                technique: 'Сначала опустить плечи от ушей. Слегка отклонить корпус назад. Тянуть локти вниз к рёбрам. Рукоять идёт к верхней части груди. Медленно вернуть руки вверх, сохраняя контроль.',
+                technique: 'Сначала опустить плечи от ушей.\nСлегка отклонить корпус назад.\nТянуть локти вниз к рёбрам.\nРукоять идёт к верхней части груди.\nМедленно вернуть руки вверх, сохраняя контроль.',
                 donts: ['Тяга рывком за счет поясницы', 'Подъем плеч к ушам'],
                 videoUrl: 'https://www.youtube.com/results?search_query=neutral+grip+lat+pulldown+technique',
                 alternatives: [
@@ -164,6 +193,12 @@
                     desc: 'Свободный вес · проработка широчайших и грудной клетки',
                     technique: 'Лежа на скамье, опускание гантели за голову на слегка согнутых руках. Возврат гантели ко лбу без расслабления спины.',
                     videoUrl: 'https://www.youtube.com/results?search_query=dumbbell+pullover+bench+technique'
+                  },
+                  {
+                    name: 'Подтягивания в гравитроне нейтральным хватом',
+                    desc: 'Тренажёр · аналог тяги сверху',
+                    technique: 'Упор коленями в платформу, тяга тела вверх за счет широчайших. Локти идут вниз и назад.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=assisted+pullup+machine+neutral+grip'
                   }
                 ]
               },
@@ -173,7 +208,7 @@
                 target: 'Грудные + передняя дельта + трицепс',
                 sets: 3, repsMin: 8, repsMax: 12, restSec: 90, category: 'isolation',
                 tip: 'Лопатки стабильны • плечи вниз • локти не на 90°',
-                technique: 'Настроить сиденье так, чтобы рукояти находились примерно на уровне середины груди. Лопатки слегка назад и вниз. Локти примерно 45–60° от корпуса. Выжать рукояти вперёд. Не вытягивать плечи за руками в конечной точке.',
+                technique: 'Настроить сиденье так, чтобы рукояти находились примерно на уровне середины груди.\nЛопатки слегка назад и вниз.\nЛокти примерно 45–60° от корпуса.\nВыжать рукояти вперёд.\nНе вытягивать плечи за руками в конечной точке.',
                 donts: ['Выведение плеч вперед в конце движения', 'Поднятие локтей вверх к шее'],
                 videoUrl: 'https://www.youtube.com/results?search_query=chest+press+machine+technique',
                 alternatives: [
@@ -182,6 +217,12 @@
                     desc: 'Свободный вес · классический вариант на горизонтальной скамье',
                     technique: 'Лопатки прижаты, жим гантелей вверх с контролем траектории. Внизу комфортно растянуть грудные.',
                     videoUrl: 'https://www.youtube.com/results?search_query=dumbbell+bench+press+technique'
+                  },
+                  {
+                    name: 'Жим штанги лежа',
+                    desc: 'Свободный вес · базовое упражнение',
+                    technique: 'Плотный упор ногами, лопатки сведены. Опускание штанги на середину груди и уверенный жим.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=barbell+bench+press+technique'
                   }
                 ]
               },
@@ -191,18 +232,18 @@
                 target: 'Задняя поверхность бедра',
                 sets: 3, repsMin: 10, repsMax: 15, restSec: 75, category: 'isolation',
                 tip: 'Таз неподвижен • сожми заднюю поверхность • не бросай вес',
-                technique: 'Ось вращения тренажёра примерно совпадает с коленом. Валик находится низко на голени. Таз и спина фиксированы. Согнуть колени, на секунду задержаться и возвращать вес медленно.',
+                technique: 'Ось вращения тренажёра примерно совпадает с коленом.\nВалик находится низко на голени.\nТаз и спина фиксированы.\nСогнуть колени, на секунду задержаться.\nВозвращать вес медленно.',
                 donts: ['Подъем таза из сиденья', 'Резкое бросание веса'],
                 videoUrl: 'https://www.youtube.com/results?search_query=seated_leg_curl_technique',
                 alternatives: [
                   {
                     name: 'Сгибание ног на фитболе / слайдерах',
-                    desc: 'Домашний вариант · контроль кора',
-                    technique: 'Лежа на спине, пятки на фитболе. Поднять таз и сгибая колени притянуть мяч к себе. Вернуть медленно.',
+                    desc: 'Свободный вариант · контроль кора',
+                    technique: 'Лежа на спине, пятки на фитболе/слайдерах. Поднять таз и сгибая колени притянуть стопы к себе. Вернуть медленно.',
                     videoUrl: 'https://www.youtube.com/results?search_query=stability+ball+leg+curl'
                   },
                   {
-                    name: 'Румынская тяга с гантелями',
+                    name: 'Румынская тяга с легкими гантелями',
                     desc: 'Свободный вес · растяжение задней поверхности',
                     technique: 'Наклон с отведением таза назад для безопасного растяжения мышц бедра.',
                     videoUrl: 'https://www.youtube.com/results?search_query=romanian_deadlift_dumbbells'
@@ -215,15 +256,21 @@
                 target: 'Трицепс',
                 sets: 3, repsMin: 10, repsMax: 15, restSec: 75, category: 'isolation',
                 tip: 'Локти приклеены к рёбрам',
-                technique: 'Локти находятся возле рёбер. Плечевая кость почти не движется. Разгибать только локоть. Внизу слегка развести концы каната. На секунду сократить трицепс. Вернуться медленно.',
+                technique: 'Локти находятся возле рёбер.\nПлечевая кость почти не движется.\nРазгибать только локоть.\nВнизу слегка развести концы каната.\nНа секунду сократить трицепс.\nВернуться медленно.',
                 donts: ['Выведение локтей вперед', 'Помощь корпусом (кивок)'],
                 videoUrl: 'https://www.youtube.com/results?search_query=cable_triceps_pushdown_rope',
                 alternatives: [
                   {
                     name: 'Французский жим с гантелями',
                     desc: 'Свободный вес · лежа на горизонтальной скамье',
-                    technique: 'Сгибание рук в локтях за счет опускания гантелей к ушам. Двигаются только предплечья.',
+                    technique: 'Лежа на скамье, сгибание рук в локтях за счет опускания гантелей к ушам. Двигаются только предплечья.',
                     videoUrl: 'https://www.youtube.com/results?search_query=dumbbell_lying_triceps_extension'
+                  },
+                  {
+                    name: 'Узкий жим гантелей лёжа',
+                    desc: 'Свободный вес · акцент на трицепс',
+                    technique: 'Жим гантелей лежа, гантели параллельны друг другу, локти идут строго вдоль корпуса.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=dumbbell+close+grip+bench+press'
                   }
                 ]
               },
@@ -233,7 +280,7 @@
                 target: 'Стабилизация корпуса • ягодицы',
                 sets: 2, repsMin: 8, repsMax: 10, restSec: 60, category: 'isolation',
                 tip: 'Таз как стакан с водой — не расплескать',
-                technique: 'Встать на четвереньки. Кисти под плечами, колени под тазом. Вытянуть противоположные руку и ногу. Не разворачивать таз и не увеличивать прогиб в пояснице. Медленно вернуться.',
+                technique: 'Встать на четвереньки.\nКисти под плечами, колени под тазом.\nВытянуть противоположные руку и ногу.\nНе разворачивать таз и не увеличивать прогиб в пояснице.\nМедленно вернуться.',
                 donts: ['Вращение таза', 'Прогиб в пояснице'],
                 videoUrl: 'https://www.youtube.com/results?search_query=bird_dog_exercise_technique',
                 alternatives: [
@@ -242,6 +289,12 @@
                     desc: 'Лёжа на спине · контроль поясницы',
                     technique: 'Удержание поясницы прижатой к полу с попеременным опусканием конечностей.',
                     videoUrl: 'https://www.youtube.com/results?search_query=dead_bug_exercise_technique'
+                  },
+                  {
+                    name: 'Bear plank с отрывом руки/ноги',
+                    desc: 'Сложный вариант · глубокий кор',
+                    technique: 'Позиция на четвереньках с оторванными от пола коленями. Попеременный отрыв руки или ноги без перекоса таза.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=bear+plank+shoulder+taps'
                   }
                 ]
               },
@@ -251,15 +304,21 @@
                 target: 'Косые мышцы • боковая стабилизация',
                 sets: 2, repsMin: 20, repsMax: 30, restSec: 60, category: 'isolation',
                 tip: 'Оттолкни пол • таз вверх • корпус длинный',
-                technique: 'Локоть строго под плечом. Колени согнуты. Поднять таз так, чтобы плечо, таз и колено образовали единую прямую линию. Не разворачивать грудь к полу.',
+                technique: 'Локоть строго под плечом.\nКолени согнуты.\nПоднять таз так, чтобы плечо, таз и колено образовали единую прямую линию.\nНе разворачивать грудь к полу.',
                 donts: ['Провисание таза вниз', 'Разворот грудной клетки к полу'],
                 videoUrl: 'https://www.youtube.com/results?search_query=side_plank_knees_technique',
                 alternatives: [
                   {
                     name: 'Боковая планка с прямых ног',
                     desc: 'Прогрессия · полная опора на стопы',
-                    technique: 'Удержание боковой планки с опорой на боковую часть стопы. Сложный вариант.',
+                    technique: 'Удержание боковой планки с опорой на боковую часть стопы.',
                     videoUrl: 'https://www.youtube.com/results?search_query=side_plank_full_technique'
+                  },
+                  {
+                    name: 'Suitcase hold (Удержание чемодана)',
+                    desc: 'Стоя · антибоковой наклон',
+                    technique: 'Удержание тяжелой гантели в одной руке стоя ровно. Противоположные косые мышцы удерживают корпус от наклона.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=suitcase+hold+exercise'
                   }
                 ]
               }
@@ -276,7 +335,7 @@
                 target: 'Задняя поверхность бедра + ягодицы',
                 sets: 4, repsMin: 8, repsMax: 10, restSec: 120, category: 'base',
                 tip: 'Не приседай — отводи таз назад',
-                technique: 'Колени слегка согнуты и почти не меняют угол. Гантели идут близко вдоль ног. Таз отправляется далеко назад. Спина сохраняет естественное положение. Опускаться до выраженного натяжения задней поверхности бедра. Встать за счёт разгибания тазобедренного сустава.',
+                technique: 'Колени слегка согнуты и почти не меняют угол.\nГантели идут близко вдоль ног.\nТаз отправляется далеко назад.\nСпина сохраняет естественное положение.\nОпускаться до выраженного натяжения задней поверхности бедра.\nВстать за счёт разгибания тазобедренного сустава.',
                 donts: ['Превращение тяги в приседание', 'Скругление спины внизу'],
                 videoUrl: 'https://www.youtube.com/results?search_query=romanian_deadlift_dumbbells_technique',
                 alternatives: [
@@ -285,6 +344,12 @@
                     desc: 'Направляющие · штанга в машине Смита',
                     technique: 'Фиксированная траектория штанги, акцент на отведение таза назад.',
                     videoUrl: 'https://www.youtube.com/results?search_query=smith_machine_romanian_deadlift'
+                  },
+                  {
+                    name: 'Канатная тяга между ног (Pull-through)',
+                    desc: 'Блок · без нагрузки на спину',
+                    technique: 'Стоя спиной к нижнему блоку, наклон с отведением таза назад и протяжкой каната между ног.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=cable_pull_through'
                   }
                 ]
               },
@@ -294,15 +359,21 @@
                 target: 'Ягодицы + квадрицепс',
                 sets: 3, repsMin: 8, repsMax: 8, restSec: 90, category: 'base',
                 tip: 'Вся стопа сверху • толкай платформу рабочей ногой',
-                technique: 'Вся стопа рабочей ноги находится на платформе. Корпус слегка наклонён вперёд. Подняться главным образом за счёт ноги, стоящей сверху. Нижней ногой не отталкиваться. Спуск контролируемый.',
+                technique: 'Вся стопа рабочей ноги находится на платформе.\nКорпус слегка наклонён вперёд.\nПодняться главным образом за счёт ноги, стоящей сверху.\nНижней ногой не отталкиваться.\nСпуск контролируемый.',
                 donts: ['Отталкивание нижней ногой от пола', 'Заваливание колена внутрь'],
                 videoUrl: 'https://www.youtube.com/results?search_query=step_up_exercise_glutes_technique',
                 alternatives: [
                   {
+                    name: 'Односторонний leg press',
+                    desc: 'Тренажёр · изоляция и контроль',
+                    technique: 'Жим одной ногой в тренажере, с контролем опускания.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=single+leg+press+technique'
+                  },
+                  {
                     name: 'Канатная тяга между ног (Pull-through)',
-                    desc: 'Блочный тренажер · безопасная замена при дискомфорте в коленях',
-                    technique: 'Наклон с отведением таза назад и протяжкой каната между ног за счет ягодиц.',
-                    videoUrl: 'https://www.youtube.com/results?search_query=cable_pull_through_technique'
+                    desc: 'Блок · если болит колено',
+                    technique: 'Использовать эту замену (3 × 12), если step-up вызывает дискомфорт в колене.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=cable_pull_through'
                   }
                 ]
               },
@@ -312,7 +383,7 @@
                 target: 'Середина спины + широчайшие',
                 sets: 3, repsMin: 10, repsMax: 12, restSec: 90, category: 'base',
                 tip: 'Лопатки → локти назад',
-                technique: 'Ноги устойчивы. Грудная клетка спокойно поднята, плечи вниз. Тянуть нейтральную рукоять к нижним рёбрам/животу. Локти назад. Корпус не раскачивать.',
+                technique: 'Ноги устойчивы.\nГрудная клетка спокойно поднята, плечи вниз.\nТянуть нейтральную рукоять к нижним рёбрам/животу.\nЛокти назад.\nКорпус не раскачивать.',
                 donts: ['Сильный раскач корпуса вперед-назад', 'Подъем плеч к ушам'],
                 videoUrl: 'https://www.youtube.com/results?search_query=seated_cable_row_neutral_grip',
                 alternatives: [
@@ -321,6 +392,12 @@
                     desc: 'Свободный вес · опора грудью исключает читинг',
                     technique: 'Лежа лицом вниз на наклонной скамье, тяга гантелей к поясу. Спина абсолютно изолирована от раскачки.',
                     videoUrl: 'https://www.youtube.com/results?search_query=chest_supported_dumbbell_row'
+                  },
+                  {
+                    name: 'Seated row с опорой грудью',
+                    desc: 'Тренажёр · изолированная тяга',
+                    technique: 'Тяга в тренажере с упором грудью. Позволяет сфокусироваться только на спине.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=chest+supported+machine+row'
                   }
                 ]
               },
@@ -330,7 +407,7 @@
                 target: 'Дельтовидные + трицепс',
                 sets: 3, repsMin: 8, repsMax: 10, restSec: 90, category: 'isolation',
                 tip: 'Рёбра над тазом • плечи далеко от ушей',
-                technique: 'Спина опирается на спинку. Рёбра не выпячивать. Локти немного впереди фронтальной линии плеч. Выжать рукояти вверх. Не поднимать плечи к ушам.',
+                technique: 'Спина опирается на спинку.\nРёбра не выпячивать.\nЛокти немного впереди фронтальной линии плеч.\nВыжать рукояти вверх.\nНе поднимать плечи к ушам.',
                 donts: ['Прогиб в пояснице', 'Поднимание плеч к ушам'],
                 videoUrl: 'https://www.youtube.com/results?search_query=machine_shoulder_press_technique',
                 alternatives: [
@@ -339,6 +416,12 @@
                     desc: 'Свободный вес · на вертикальной скамье',
                     technique: 'Плавный жим гантелей вверх со скамьи под углом 90 или 80 градусов.',
                     videoUrl: 'https://www.youtube.com/results?search_query=seated_dumbbell_shoulder_press'
+                  },
+                  {
+                    name: 'Landmine press со штангой',
+                    desc: 'Свободный вес · комфортно для плечевого сустава',
+                    technique: 'Жим одного конца штанги (второй упирается в угол) одной рукой стоя. Движение идет вперед и вверх.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=single+arm+landmine+press'
                   }
                 ]
               },
@@ -348,7 +431,7 @@
                 target: 'Средняя ягодичная',
                 sets: 3, repsMin: 15, repsMax: 20, restSec: 75, category: 'isolation',
                 tip: 'Развести → пауза → медленно вернуть',
-                technique: 'Таз стабилен. Можно немного наклонить корпус вперёд. Развести колени. Задержаться на секунду. Медленно вернуть.',
+                technique: 'Таз стабилен.\nМожно немного наклонить корпус вперёд.\nРазвести колени.\nЗадержаться на секунду.\nМедленно вернуть.',
                 donts: ['Резкие движения и броски веса', 'Оторванный от сиденья таз'],
                 videoUrl: 'https://www.youtube.com/results?search_query=hip_abduction_machine_technique',
                 alternatives: [
@@ -357,6 +440,12 @@
                     desc: 'Блок · с манжетой на голени',
                     technique: 'Стоя боком к блоку, плавное отведение ноги в сторону, чувствуя среднюю ягодичную.',
                     videoUrl: 'https://www.youtube.com/results?search_query=cable_hip_abduction_technique'
+                  },
+                  {
+                    name: 'Отведение ноги лёжа на боку',
+                    desc: 'Свободный вариант · с утяжелителем',
+                    technique: 'Лежа на боку, плавный подъем прямой верхней ноги вверх.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=lying+side+leg+raises'
                   }
                 ]
               },
@@ -366,7 +455,7 @@
                 target: 'Трицепс (длинная головка)',
                 sets: 3, repsMin: 10, repsMax: 15, restSec: 75, category: 'isolation',
                 tip: 'Локти вверх • двигаются только предплечья',
-                technique: 'Встать спиной к блоку. Локти направлены вперёд и вверх. Верхняя часть руки практически неподвижна. Согнуть локти, дать трицепсу растянуться. Полностью разогнуть руки. Не прогибаться поясницей.',
+                technique: 'Встать спиной к блоку.\nЛокти направлены вперёд и вверх.\nВерхняя часть руки практически неподвижна.\nСогнуть локти, дать трицепсу растянуться.\nПолностью разогнуть руки.\nНе прогибаться поясницей.',
                 donts: ['Опускание локтей вниз', 'Прогиб поясницы'],
                 videoUrl: 'https://www.youtube.com/results?search_query=overhead_cable_triceps_extension',
                 alternatives: [
@@ -375,6 +464,12 @@
                     desc: 'Свободный вес · сидя на скамье',
                     technique: 'Удержание одной гантели вертикально за головой с выпрямлением рук вверх.',
                     videoUrl: 'https://www.youtube.com/results?search_query=overhead_dumbbell_triceps_extension'
+                  },
+                  {
+                    name: 'Французский жим EZ-грифом/гантелями лёжа',
+                    desc: 'Свободный вес · лежа на скамье',
+                    technique: 'Опускание веса ко лбу и разгибание рук вверх.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=skullcrushers_ez_bar'
                   }
                 ]
               },
@@ -384,7 +479,7 @@
                 target: 'Глубокие мышцы живота',
                 sets: 2, repsMin: 8, repsMax: 10, restSec: 60, category: 'isolation',
                 tip: 'Двигаются руки и ноги — корпус остаётся',
-                technique: 'Лёжа на спине, руки вверх. Колени примерно 90°. Вытянуть противоположные руку и ногу. Пояснично-тазовая область остаётся стабильной. Амплитуда заканчивается там, где начинает теряться контроль корпуса. Вдох — вытяжение, выдох — возврат.',
+                technique: 'Лёжа на спине, руки вверх. Колени примерно 90°.\nВытянуть противоположные руку и ногу.\nПояснично-тазовая область остаётся стабильной.\nВдох — вытяжение, выдох — возврат.',
                 donts: ['Отрыв поясницы от пола', 'Задержка дыхания'],
                 videoUrl: 'https://www.youtube.com/results?search_query=dead_bug_exercise_technique',
                 alternatives: [
@@ -393,6 +488,12 @@
                     desc: 'Облегченный вариант · для поясницы',
                     technique: 'Попеременное опускание согнутой ноги до касания пяткой пола с удержанием спины.',
                     videoUrl: 'https://www.youtube.com/results?search_query=heel_taps_core_exercise'
+                  },
+                  {
+                    name: 'Dead bug только ногами',
+                    desc: 'Облегченный вариант · без рук',
+                    technique: 'Руки вытянуты вверх неподвижно, работают только ноги.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=dead_bug_legs_only'
                   }
                 ]
               }
@@ -409,7 +510,7 @@
                 target: 'Ноги + ягодицы',
                 sets: 3, repsMin: 8, repsMax: 10, restSec: 120, category: 'base',
                 tip: 'Садись к боксу, но не падай на него',
-                technique: 'Гантель вертикально перед грудью. Стопы в комфортном положении. Таз назад и вниз к скамье. Колени идут по стопам. Коснуться скамьи без расслабления и встать.',
+                technique: 'Гантель вертикально перед грудью.\nСтопы в комфортном положении.\nТаз назад и вниз к скамье.\nКолени идут по стопам.\nКоснуться скамьи без расслабления и встать.',
                 donts: ['Плюхаться на скамью', 'Сведение коленей'],
                 videoUrl: 'https://www.youtube.com/results?search_query=goblet_squat_to_box_technique',
                 alternatives: [
@@ -418,6 +519,12 @@
                     desc: 'Тренажер · альтернатива при усталости спины',
                     technique: 'Стандартный жим ногами в станке со средней постановкой стоп.',
                     videoUrl: 'https://www.youtube.com/results?search_query=leg_press_technique'
+                  },
+                  {
+                    name: 'Присед в Смите до бокса',
+                    desc: 'Направляющие · уверенная стабилизация',
+                    technique: 'Гриф на плечах, присед до легкого касания скамьи.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=smith_machine_squat_to_box'
                   }
                 ]
               },
@@ -427,7 +534,7 @@
                 target: 'Ягодицы + задняя поверхность бедра',
                 sets: 3, repsMin: 10, repsMax: 12, restSec: 90, category: 'base',
                 tip: 'До прямой линии — не дальше',
-                technique: 'Верх подушки располагается так, чтобы тазобедренный сустав мог свободно сгибаться. Опуститься за счёт сгибания в тазобедренных. Можно слегка округлить верх спины. Подняться сокращением ягодиц до образования прямой линии. Выше не подниматься.',
+                technique: 'Верх подушки располагается так, чтобы тазобедренный сустав мог свободно сгибаться.\nОпуститься за счёт сгибания в тазобедренных.\nМожно слегка округлить верх спины.\nПодняться сокращением ягодиц до образования прямой линии.\nВыше не подниматься.',
                 donts: ['Переразгибание (прогиб) в пояснице вверху', 'Резкие рывки'],
                 videoUrl: 'https://www.youtube.com/results?search_query=glute_focused_back_extension',
                 alternatives: [
@@ -436,6 +543,12 @@
                     desc: 'Блочный тренажер · отличный аналог',
                     technique: 'Протяжка каната между ног с акцентом на сокращение ягодиц, без осевой нагрузки.',
                     videoUrl: 'https://www.youtube.com/results?search_query=cable_pull_through'
+                  },
+                  {
+                    name: 'Румынская тяга в Смите',
+                    desc: 'Направляющие · акцент на заднюю поверхность',
+                    technique: 'Фиксированная траектория штанги, отведение таза назад.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=smith_machine_romanian_deadlift'
                   }
                 ]
               },
@@ -445,7 +558,7 @@
                 target: 'Широчайшие + средняя часть спины',
                 sets: 3, repsMin: 10, repsMax: 10, restSec: 90, category: 'base',
                 tip: 'Локоть к заднему карману',
-                technique: 'Одной рукой опереться на скамью. Корпус неподвижен. Плечо не тянуть к уху. Вести локоть назад и немного к тазу. Опустить гантель контролируемо.',
+                technique: 'Одной рукой опереться на скамью.\nКорпус неподвижен.\nПлечо не тянуть к уху.\nВести локоть назад и немного к тазу.\nОпустить гантель контролируемо.',
                 donts: ['Вращение корпуса вместе с гантелью', 'Тяга за счет бицепса'],
                 videoUrl: 'https://www.youtube.com/results?search_query=one_arm_dumbbell_row_technique',
                 alternatives: [
@@ -454,6 +567,12 @@
                     desc: 'Блок · с D-образной рукоятью',
                     technique: 'Тяга блока к поясу стоя в наклоне или сидя одной рукой, локоть вдоль корпуса.',
                     videoUrl: 'https://www.youtube.com/results?search_query=single_arm_cable_row'
+                  },
+                  {
+                    name: 'Row с опорой грудью',
+                    desc: 'Тренажёр · изоляция спины',
+                    technique: 'Тяга в тренажере двумя руками с упором грудью.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=chest_supported_machine_row'
                   }
                 ]
               },
@@ -463,14 +582,20 @@
                 target: 'Верх груди + дельта + трицепс',
                 sets: 3, repsMin: 8, repsMax: 12, restSec: 90, category: 'isolation',
                 tip: 'Лопатки стабильны • локти под контролем',
-                technique: 'Угол скамьи примерно 30–45°. Стопы устойчивы. Лопатки опираются на скамью. Локти примерно 45° от корпуса. Опустить гантели контролируемо. Выжать вверх без столкновения гантелей.',
+                technique: 'Угол скамьи примерно 30–45°.\nСтопы устойчивы.\nЛопатки опираются на скамью.\nЛокти примерно 45° от корпуса.\nОпустить гантели контролируемо.\nВыжать вверх без столкновения гантелей.',
                 donts: ['Стучание гантелями друг о друга вверху', 'Отрыв таза от скамьи'],
                 videoUrl: 'https://www.youtube.com/results?search_query=incline_dumbbell_press_technique',
                 alternatives: [
                   {
+                    name: 'Наклонный chest press',
+                    desc: 'Тренажёр · заданная траектория',
+                    technique: 'Жим в тренажере, где рукояти двигаются вверх и вперед.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=incline_chest_press_machine'
+                  },
+                  {
                     name: 'Жим в Смите на наклонной скамье',
-                    desc: 'Направляющие · штанга под углом 30 градусов',
-                    technique: 'Жим штанги в тренажере Смита с наклонной спинкой для точного контроля.',
+                    desc: 'Направляющие · контроль веса',
+                    technique: 'Жим штанги в тренажере Смита с наклонной спинкой.',
                     videoUrl: 'https://www.youtube.com/results?search_query=smith_machine_incline_bench_press'
                   }
                 ]
@@ -481,15 +606,21 @@
                 target: 'Большая ягодичная',
                 sets: 3, repsMin: 12, repsMax: 15, restSec: 75, category: 'isolation',
                 tip: 'Нога назад ягодицей, а не поясницей',
-                technique: 'Манжета на голени/лодыжке. Корпус слегка наклонить вперёд. Таз смотрит прямо. Отвести ногу назад из тазобедренного сустава. Не пытаться поднять её максимально высоко. Медленно вернуть.',
+                technique: 'Манжета на голени/лодыжке.\nКорпус слегка наклонить вперёд.\nТаз смотрит прямо.\nОтвести ногу назад из тазобедренного сустава.\nНе пытаться поднять её максимально высоко.\nМедленно вернуть.',
                 donts: ['Прогиб и залом в пояснице', 'Раскачивание туловища'],
                 videoUrl: 'https://www.youtube.com/results?search_query=cable_glute_kickback_technique',
                 alternatives: [
                   {
-                    name: 'Ягодичный мост одной ногой на полу',
-                    desc: 'Свободный вес · без оборудования',
-                    technique: 'Мост на полу с опорой на одну стопу и подъемом таза рабочей ягодицей.',
-                    videoUrl: 'https://www.youtube.com/results?search_query=single_leg_glute_bridge_floor'
+                    name: 'Glute kickback machine',
+                    desc: 'Тренажёр · удобная изоляция',
+                    technique: 'Отведение ноги назад в специальном тренажере с упором грудью.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=glute_kickback_machine_technique'
+                  },
+                  {
+                    name: 'Одноногий hip thrust с гантелью',
+                    desc: 'Свободный вес · эффективная замена',
+                    technique: 'Ягодичный мост с опорой спиной на скамью, работая только одной ногой.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=single_leg_hip_thrust'
                   }
                 ]
               },
@@ -499,14 +630,20 @@
                 target: 'Средняя дельта',
                 sets: 3, repsMin: 12, repsMax: 15, restSec: 75, category: 'isolation',
                 tip: 'Локти ведут • кисти не выше локтей',
-                technique: 'Локти слегка согнуты. Руки идут не строго в стороны, а примерно на 20–30° вперёд. Локти ведут движение. Поднять до уровня плеч или немного ниже. Опустить медленно.',
+                technique: 'Локти слегка согнуты.\nРуки идут не строго в стороны, а примерно на 20–30° вперёд.\nЛокти ведут движение.\nПоднять до уровня плеч или немного ниже.\nОпустить медленно.',
                 donts: ['Использование инерции корпуса (читинг)', 'Поднятие кистей выше локтей'],
                 videoUrl: 'https://www.youtube.com/results?search_query=lateral_raise_technique_jeff_nippard',
                 alternatives: [
                   {
-                    name: 'Разведение рук в стороны на нижнем блоке',
-                    desc: 'Блок · каждой рукой по очереди',
-                    technique: 'Подъем руки в сторону с нижнего блока кроссовера, обеспечивая ровное сопротивление.',
+                    name: 'Lateral raise machine',
+                    desc: 'Тренажёр · изолированная нагрузка',
+                    technique: 'Разведение рук в тренажере, где валики упираются в локти.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=lateral_raise_machine_technique'
+                  },
+                  {
+                    name: 'Одностороннее разведение на нижнем блоке',
+                    desc: 'Блок · ровное сопротивление',
+                    technique: 'Стоя боком к блоку, подъем руки в сторону. Каждой рукой по очереди.',
                     videoUrl: 'https://www.youtube.com/results?search_query=single_arm_cable_lateral_raise'
                   }
                 ]
@@ -517,15 +654,21 @@
                 target: 'Хват + плечевой пояс + кор',
                 sets: 3, repsMin: 30, repsMax: 40, restSec: 75, category: 'isolation',
                 tip: 'Высокая осанка • тяжёлые руки • тихий корпус',
-                technique: 'Две одинаковые гантели по бокам. Макушка вверх. Рёбра над тазом. Плечи не подтягивать к ушам. Шаги обычные. Не раскачиваться из стороны в сторону.',
+                technique: 'Две одинаковые гантели по бокам.\nМакушка вверх.\nРёбра над тазом.\nПлечи не подтягивать к ушам.\nШаги обычные.\nНе раскачиваться из стороны в сторону.',
                 donts: ['Наклон корпуса вперед', 'Раскачивание в стороны'],
                 videoUrl: 'https://www.youtube.com/results?search_query=dumbbell_farmer_walk_technique',
                 alternatives: [
                   {
-                    name: 'Прогулка чемодана (Suitcase carry)',
-                    desc: 'Свободный вес · с одной гантелью для проработки косых',
+                    name: 'Suitcase carry (с одной гантелью)',
+                    desc: 'Свободный вес · смена стороны',
                     technique: 'Удержание одной гантели в руке с ровным неподвижным корпусом, затем смена руки.',
                     videoUrl: 'https://www.youtube.com/results?search_query=suitcase_carry_technique'
+                  },
+                  {
+                    name: 'Cable march (марш с блоком)',
+                    desc: 'Блок · стоя на месте',
+                    technique: 'Ходьба/марш на месте с сопротивлением нижнего блока, удерживаемого руками.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=cable_march_exercise'
                   }
                 ]
               },
@@ -535,10 +678,16 @@
                 target: 'Стабилизация корпуса',
                 sets: 2, repsMin: 20, repsMax: 30, restSec: 60, category: 'isolation',
                 tip: 'Не дольше — качественнее',
-                technique: 'Локти под плечами. Макушка тянется вперёд, пятки назад. Таз находится между провисанием и «домиком». Нижние рёбра слегка собрать. Ягодицы умеренно активны.',
+                technique: 'Локти под плечами.\nМакушка тянется вперёд, пятки назад.\nТаз находится между провисанием и «домиком».\nНижние рёбра слегка собрать.\nЯгодицы умеренно активны.',
                 donts: ['Провисание поясницы', 'Подъем таза домиком'],
                 videoUrl: 'https://www.youtube.com/results?search_query=plank_exercise_technique',
                 alternatives: [
+                  {
+                    name: 'Высокая планка на ладонях',
+                    desc: 'Свободный вариант · упор на прямых руках',
+                    technique: 'Положение как для отжиманий. Тело образует прямую линию.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=high_plank_technique'
+                  },
                   {
                     name: 'Планка с колен',
                     desc: 'Облегченный вариант · идеальная техника',
@@ -554,15 +703,21 @@
                 sets: 2, repsMin: 12, repsMax: 15, restSec: 60, category: 'isolation',
                 minWeek: 5,
                 tip: 'Плечо стоит — предплечье движется',
-                technique: 'Добавляем только с 5-й недели. Локоть находится возле корпуса. Плечо неподвижно. Полностью разогнуть локоть. На секунду сократить трицепс. Вернуть руку медленно.',
+                technique: 'Локоть находится возле корпуса.\nПлечо неподвижно.\nПолностью разогнуть локоть.\nНа секунду сократить трицепс.\nВернуть руку медленно.',
                 donts: ['Движение плечевой кости вперед-назад', 'Рывки'],
                 videoUrl: 'https://www.youtube.com/results?search_query=single_arm_cable_triceps_extension',
                 alternatives: [
                   {
-                    name: 'Разгибание одной гантели из-за головы сидя',
+                    name: 'Разгибание одной гантели из-за головы',
                     desc: 'Свободный вес · с гантелью',
                     technique: 'Удержание гантели одной рукой за головой с разгибанием вверх. Локоть стабилен.',
                     videoUrl: 'https://www.youtube.com/results?search_query=single_arm_overhead_dumbbell_extension'
+                  },
+                  {
+                    name: 'Французское разгибание одной гантели лёжа',
+                    desc: 'Свободный вес · изоляция трицепса',
+                    technique: 'Лежа на спине, опускание одной гантели ко лбу и разгибание руки.',
+                    videoUrl: 'https://www.youtube.com/results?search_query=single_arm_dumbbell_skullcrusher'
                   }
                 ]
               }
@@ -573,20 +728,20 @@
         const PRESETS = {
           vacation: {
             1: { type: 'yoga', name: 'Йога и мобильность' },
-            2: { type: 'workout', name: 'Тренировка в зале' },
+            2: { type: 'workout', name: 'Тренировка A' },
             3: { type: 'yoga', name: 'Йога и мобильность' },
-            4: { type: 'workout', name: 'Тренировка в зале' },
+            4: { type: 'workout', name: 'Тренировка Б' },
             5: { type: 'cardio', name: 'Бассейн' },
-            6: { type: 'workout', name: 'Тренировка в зале' },
+            6: { type: 'workout', name: 'Тренировка В' },
             7: { type: 'rest', name: 'День восстановления' }
           },
           office: {
             1: { type: 'yoga', name: 'Йога и мобильность' },
-            2: { type: 'workout', name: 'Тренировка в зале' },
+            2: { type: 'workout', name: 'Тренировка A' },
             3: { type: 'yoga', name: 'Йога и мобильность' },
-            4: { type: 'workout', name: 'Тренировка в зале' },
+            4: { type: 'workout', name: 'Тренировка Б' },
             5: { type: 'rest', name: 'День восстановления' },
-            6: { type: 'workout', name: 'Тренировка в зале' },
+            6: { type: 'workout', name: 'Тренировка В' },
             7: { type: 'cardio', name: 'Бассейн' }
           }
         };
@@ -1003,8 +1158,13 @@
           const mondayTs = getMonday(now);
 
           const WEEK_PLAN_LABELS = [
-            { day: 1, label: 'Пн' }, { day: 2, label: 'Вт' }, { day: 3, label: 'Ср' }, { day: 4, label: 'Чт' },
-            { day: 5, label: 'Пт' }, { day: 6, label: 'Сб' }, { day: 7, label: 'Вс' },
+            { day: 1, label: 'Пн', icon: Wind },
+            { day: 2, label: 'Вт', icon: Dumbbell },
+            { day: 3, label: 'Ср', icon: Wind },
+            { day: 4, label: 'Чт', icon: Dumbbell },
+            { day: 5, label: 'Пт', icon: Coffee },
+            { day: 6, label: 'Сб', icon: Dumbbell },
+            { day: 7, label: 'Вс', icon: Waves },
           ];
 
           const getActionTabByType = (type) => {
@@ -1049,7 +1209,7 @@
                   const isToday = dayItem.day === currentDayOfWeek;
                   
                   const scheduledToday = weekSchedule[dayItem.day];
-                  let IconComp = Check;
+                  let IconComp = dayItem.icon;
                   if (!isDone) {
                     if (scheduledToday?.type === 'workout') IconComp = Dumbbell;
                     else if (scheduledToday?.type === 'yoga') IconComp = Wind;
@@ -1064,7 +1224,7 @@
                         borderColor: isToday && !isDone ? THEME.gold : 'transparent',
                         color: isDone ? THEME.textMilk : isToday ? THEME.gold : THEME.textMuted
                       }} className={`w-11 h-11 rounded-full flex items-center justify-center text-[16px] font-bold transition-all ${isToday && !isDone ? 'border-2' : ''}`}>
-                        <IconComp size={18} strokeWidth={isDone ? 3 : 2} />
+                        {isDone ? <Check size={18} strokeWidth={3}/> : <IconComp size={18} />}
                       </div>
                       <span style={{ color: isToday ? THEME.textMilk : THEME.textMuted }} className="text-[14px] font-bold">{dayItem.label}</span>
                     </div>
@@ -1205,7 +1365,9 @@
           const [activeSetNum, setActiveSetNum] = useState(1);
           const [isTechniqueOpen, setIsTechniqueOpen] = useState(false);
 
-          const ex = workout.exercises[currentExIdx];
+          const availableExercises = workout.exercises.filter(e => !e.minWeek || currentWeek >= e.minWeek);
+          const ex = availableExercises[currentExIdx];
+          
           const chosenAltName = selectedAlternatives[ex.id];
           const currentAltObj = ex.alternatives && ex.alternatives.find(a => a.name === chosenAltName);
           
@@ -1215,9 +1377,8 @@
           const activeDonts = currentAltObj?.donts || ex.donts;
 
           const totalSets = getSetsForCurrentWeek(ex.sets);
-          const availableExercises = workout.exercises.filter(e => !e.minWeek || currentWeek >= e.minWeek);
 
-          // Предзагрузка прошлых весов
+          // Load previous weights
           useEffect(() => {
             const lastWorkout = data.history.slice().reverse().find(w => w.programId === workout.id);
             if (lastWorkout && lastWorkout.setsData) {
@@ -1351,6 +1512,7 @@
                   <h2 className="text-[32px] font-bold tracking-tight mb-2 leading-tight" style={{ color: '#F7F3EB' }}>{activeExName}</h2>
                   <p className="text-[18px] font-bold mb-5" style={{ color: THEME.gold }}>{ex.target}</p>
 
+                  {/* Техника упражнения с крупным шрифтом */}
                   <div className="mb-5 bg-[#292D28] rounded-[20px] p-5 border border-[rgba(243,238,229,0.15)] shadow-lg">
                     <div 
                       onClick={() => setIsTechniqueOpen(!isTechniqueOpen)}
@@ -1361,11 +1523,11 @@
 
                     {isTechniqueOpen && (
                       <div className="mt-5 pt-5 border-t border-white/10 space-y-5">
-                        <div className="space-y-3">
-                          {activeTechnique.split('. ').map((s, idx) => s && (
-                            <div key={idx} className="flex gap-3 text-[18px] leading-[1.6]">
+                        <div className="space-y-4">
+                          {activeTechnique.split('\n').map((s, idx) => s && (
+                            <div key={idx} className="flex gap-3 text-[19px] font-medium leading-[1.6]">
                               <span style={{ color: THEME.sage }}>•</span>
-                              <span>{s.replace(/\.$/, '')}.</span>
+                              <span>{s}</span>
                             </div>
                           ))}
                         </div>
@@ -1381,8 +1543,8 @@
 
                         <div className="flex gap-3 pt-2">
                           {activeVideoUrl && (
-                            <a href={activeVideoUrl} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: 'rgba(163,171,150,0.25)', color: THEME.textMilk }} className="flex-1 flex justify-center items-center gap-2 font-bold text-[16px] py-4 rounded-[14px]">
-                              <Youtube size={22} /> Видео
+                            <a href={activeVideoUrl} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: 'rgba(163,171,150,0.25)', color: THEME.textMilk }} className="flex-1 flex justify-center items-center gap-2 font-bold text-[18px] py-4 rounded-[14px]">
+                              <Youtube size={24} /> Видео
                             </a>
                           )}
                         </div>
@@ -1394,7 +1556,7 @@
                               value={selectedAlternatives[ex.id] || ''}
                               onChange={e => setSelectedAlternatives({...selectedAlternatives, [ex.id]: e.target.value})}
                               style={{ backgroundColor: '#171A19', color: THEME.textMilk, borderColor: 'rgba(243,238,229,0.2)' }}
-                              className="w-full text-[16px] py-4 px-4 rounded-[14px] border outline-none font-bold"
+                              className="w-full text-[17px] py-4 px-4 rounded-[14px] border outline-none font-bold"
                             >
                               <option value="">(Основной вариант: {ex.name})</option>
                               {ex.alternatives.map((alt, ai) => (
@@ -1411,7 +1573,7 @@
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-[18px] font-bold" style={{ color: THEME.textMilk }}>Есть дискомфорт или боль?</span>
                       <span className="font-bold text-[20px]" style={{ color: currentDiscomfort > 3 ? THEME.error : THEME.sage }}>
-                        {currentDiscomfort === 0 ? 'Нет' : currentDiscomfort <= 3 ? 'Умеренный' : 'Сильный'} ({currentDiscomfort})
+                        {currentDiscomfort === 0 ? 'Нет' : currentDiscomfort <= 3 ? 'Умеренно' : 'Сильно'} ({currentDiscomfort})
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
@@ -1966,16 +2128,16 @@
                   
                   <div className="p-5 rounded-[16px] bg-[#171A19] border border-white/5">
                     <b style={{ color: THEME.sage }} className="block mb-4 text-[22px]">RIR (Сколько в запасе?)</b>
-                    <div className="space-y-4 text-[18px]">
-                      <div className="flex gap-4"><span className="font-bold text-[22px] min-w-[32px] text-stone-400">4+</span> <span>Могли продолжать долго. Вес лёгкий.</span></div>
-                      <div className="flex gap-4"><span className="font-bold text-[22px] min-w-[32px] text-stone-300">3</span> <span>Ещё три чистых повтора точно получились бы.</span></div>
-                      <div className="flex gap-4"><span className="font-bold text-[22px] min-w-[32px]" style={{ color: THEME.sage }}>2</span> <span className="font-bold">Ещё два повтора — тяжело, но без потери техники. (Цель)</span></div>
-                      <div className="flex gap-4"><span className="font-bold text-[22px] min-w-[32px]" style={{ color: THEME.gold }}>1</span> <span>Получился бы только один чистый повтор.</span></div>
-                      <div className="flex gap-4"><span className="font-bold text-[22px] min-w-[32px]" style={{ color: THEME.error }}>0</span> <span>Следующий повтор уже не выполнить — отказ.</span></div>
-                    </div>
+                    {RIR_DESCRIPTION}
                   </div>
                   
                   <p><b style={{ color: THEME.sage }}>Локальное жиросжигание:</b> Жир не уходит только с рук или бедер; тело худеет системно.</p>
+                </div>
+              </Card>
+              
+              <Card onClick={resetData} className="border-red-900/30">
+                <div className="flex items-center justify-center gap-3 text-red-400 font-bold text-[18px] py-2">
+                  <Trash2 size={24} /> <span>Сбросить все данные приложения</span>
                 </div>
               </Card>
             </div>
