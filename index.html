@@ -1,1808 +1,1254 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Home, Dumbbell, Apple, LineChart, MoreHorizontal, ChevronRight,
-  Plus, Minus, X, Check, Play, RefreshCw, Info, Camera, Download,
-  Upload, Trash2, AlertTriangle, ArrowRight, Sparkles
-} from "lucide-react";
-
-/* ======================================================================
-   ДАННЫЕ ПРОГРАММЫ
-====================================================================== */
-
-const WARMUP = {
-  cardio: "5 минут дорожки или эллипса в спокойном темпе",
-  note: "Цель разминки — подготовиться, а не устать.",
-  items: [
-    { name: "Ягодичный мост без веса", volume: "12" },
-    { name: "Очень лёгкая горизонтальная тяга", volume: "12–15" },
-    { name: "Присед до высокой скамьи", volume: "8–10" },
-    { name: "Dead bug", volume: "5–6 на сторону" },
-  ],
-};
-
-const initialWorkingWeights = {
-  A1_hipThrust: { value: 5, unit: "kg", note: "уже освоенный вариант" },
-  A2_legPress: { value: 30, unit: "kg" },
-  A3_neutralLatPulldown: { value: 23, unit: "kg", displayAlt: "50 lb" },
-  A4_machineChestPress: { value: 2, unit: "machineLevel", equipment: "HOIST", note: "дальше калибровать" },
-  A5_seatedLegCurl: { value: 7, unit: "machineLevel", equipment: "HOIST" },
-  A6_ropePushdown: { value: 23, unit: "kg", note: "примерно на 8–10 чистых повторов" },
-  A7_birdDog: { value: null, unit: "bodyweight" },
-  A8_sidePlank: { value: null, unit: "bodyweight" },
-  B1_dumbbellRDL: null,
-  B2_stepUp: null,
-  B3_seatedCableRow: null,
-  B4_machineShoulderPress: null,
-  B5_hipAbductionMachine: { value: 54, unit: "kg", note: "тестовый ориентир" },
-  B6_overheadRopeExtension: null,
-  B7_deadBug: { value: null, unit: "bodyweight" },
-  C1_gobletBoxSquat: null,
-  C2_gluteBackExtension: null,
-  C3_oneArmDumbbellRow: null,
-  C4_inclineDumbbellPress: null,
-  C5_cableGluteKickback: null,
-  C6_dumbbellLateralRaise: { value: 3, unit: "kgEach", note: "далее возможен тест 4 кг" },
-  C7_farmerCarry: { valueMin: 5, valueMax: 6, unit: "kgEach", note: "стартовый тест" },
-  C8_plank: { value: null, unit: "bodyweight" },
-  C9_singleArmCableTriceps: null,
-};
-
-function mkEx(o) {
-  return { isIsolation: false, weekStart: 1, ...o };
-}
-
-const PROGRAM = {
-  A: {
-    label: "Тренировка A",
-    focus: "ягодицы • спина • грудь • трицепс • стабилизация корпуса",
-    exercises: [
-      mkEx({
-        id: "A1_hipThrust", name: "Hip Thrust", target: "Ягодицы",
-        targetDetail: "Большая ягодичная; дополнительно задняя поверхность бедра",
-        setsFull: "4 × 8–10", setsEarly: "2 × 8–10",
-        focus: "Движение заканчивается сокращением ягодиц, а не прогибом поясницы",
-        tip: "Рёбра вниз • таз слегка подкрутить • сжать ягодицы",
-        steps: ["Нижний край лопаток находится на опоре.", "Стопы примерно на ширине таза.", "В верхней точке голени близки к вертикали.", "Поднять таз и слегка сделать задний наклон таза.", "Задержать сокращение ягодиц примерно на 1 секунду.", "Опустить таз контролируемо."],
-        avoid: ["переразгибание поясницы", "толчок носками", "запрокидывание головы"],
-        video: "Видео техники Hip Thrust — Bret Contreras",
-        videoUrl: "https://www.youtube.com/results?search_query=Hip+Thrust+technique+Bret+Contreras",
-        alternatives: [
-          { name: "Hip thrust со штангой на скамье", note: "Свободные веса · тот же двигательный паттерн", video: "Видео Barbell Hip Thrust", videoUrl: "https://www.youtube.com/results?search_query=Barbell+Hip+Thrust+technique" },
-          { name: "Ягодичный мост на полу с гантелью", note: "Свободные веса · более простой вариант", video: "Видео Dumbbell Glute Bridge", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Glute+Bridge+technique" }
-        ]
-      }),
-      mkEx({
-        id: "A2_legPress", name: "Жим ногами", target: "Квадрицепс + ягодицы",
-        targetDetail: "Стопы чуть выше середины платформы",
-        setsFull: "3 × 10–12", setsEarly: "2 × 10–12",
-        focus: "Стопы чуть выше середины платформы, чтобы не грузить только переднюю поверхность бедра",
-        tip: "Таз прижат • колени по стопам • медленно вниз",
-        steps: ["Таз и крестец прижаты к спинке.", "Стопы примерно на ширине плеч.", "Колени идут по направлению второго–третьего пальца стопы.", "Опускать платформу только до глубины, при которой таз не подкручивается.", "Вверху не «защёлкивать» колени."],
-        avoid: ["подкручивание таза внизу", "защёлкивание коленей вверху"],
-        video: "Видео техники Leg Press — Jeff Nippard",
-        videoUrl: "https://www.youtube.com/results?search_query=Leg+Press+technique+Jeff+Nippard",
-        alternatives: [
-          { name: "Goblet squat с гантелью до бокса", note: "Свободный вес", video: "Видео Goblet Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Goblet+Box+Squat+technique" },
-          { name: "Присед в Смите до скамьи", note: "Направляющие", video: "Видео Smith Machine Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Box+Squat" }
-        ]
-      }),
-      mkEx({
-        id: "A3_neutralLatPulldown", name: "Вертикальная тяга нейтральным хватом", target: "Широчайшие + верх спины",
-        setsFull: "3 × 8–12", setsEarly: "2 подхода",
-        focus: "Не тянуть рукоять руками, а двигать локти вниз",
-        tip: "Плечи вниз → локти к рёбрам",
-        steps: ["Сначала опустить плечи от ушей.", "Слегка отклонить корпус назад.", "Тянуть локти вниз к рёбрам.", "Рукоять идёт к верхней части груди.", "Медленно вернуть руки вверх, сохраняя контроль."],
-        avoid: ["тяга только руками", "рывок корпусом"],
-        video: "Видео техники Lat Pulldown — Jeff Nippard",
-        videoUrl: "https://www.youtube.com/results?search_query=Lat+Pulldown+technique+Jeff+Nippard",
-        alternatives: [
-          { name: "Пуловер с гантелью", note: "Близкий по мышцам, но не полный аналог", video: "Видео Dumbbell Pullover", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Pullover+technique" },
-          { name: "Подтягивания в гравитроне нейтральным хватом", note: "Тренажёр", video: "Видео Assisted Pull-up Neutral Grip", videoUrl: "https://www.youtube.com/results?search_query=Assisted+Pull-up+neutral+grip" }
-        ]
-      }),
-      mkEx({
-        id: "A4_machineChestPress", name: "Жим от груди в тренажёре", target: "Грудные + передняя дельта + трицепс",
-        setsFull: "3 × 8–12", setsEarly: "2 подхода",
-        focus: "Локти под углом 45–60°, не вытягивать плечи за руками",
-        tip: "Лопатки стабильны • плечи вниз • локти не на 90°",
-        steps: ["Настроить сиденье: рукояти примерно на уровне середины груди.", "Лопатки слегка направить назад и вниз.", "Локти держать примерно под углом 45–60° к корпусу.", "Выжать рукояти вперёд.", "Не вытягивать плечи за руками в конечной точке."],
-        avoid: ["локти под 90°", "выброс плеч вперёд"],
-        video: "Видео Chest Press Machine",
-        videoUrl: "https://www.youtube.com/results?search_query=Chest+Press+Machine+technique",
-        alternatives: [
-          { name: "Жим гантелей лёжа", note: "Свободный вес", video: "Видео Dumbbell Bench Press", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Bench+Press+technique" },
-          { name: "Жим штанги лёжа", note: "Свободный вес", video: "Видео Barbell Bench Press", videoUrl: "https://www.youtube.com/results?search_query=Barbell+Bench+Press+technique" }
-        ]
-      }),
-      mkEx({
-        id: "A5_seatedLegCurl", name: "Сгибание ног сидя", target: "Задняя поверхность бедра",
-        setsFull: "3 × 10–15", setsEarly: "2 подхода",
-        focus: "Таз и спина фиксированы, не бросать вес обратно",
-        tip: "Таз неподвижен • сожми заднюю поверхность • не бросай вес",
-        steps: ["Ось вращения тренажёра примерно совпадает с коленом.", "Валик находится низко на голени.", "Таз и спина фиксированы.", "Согнуть колени и на секунду задержаться.", "Возвращать вес медленно."],
-        avoid: ["сброс веса без контроля", "отрыв таза от сиденья"],
-        video: "Видео техники Seated Leg Curl — NASM",
-        videoUrl: "https://www.youtube.com/results?search_query=Seated+Leg+Curl+technique+NASM",
-        alternatives: [
-          { name: "Сгибание ног на фитболе или слайдерах", note: "Домашний вариант", video: "Видео Swiss Ball Leg Curl", videoUrl: "https://www.youtube.com/results?search_query=Swiss+Ball+Leg+Curl" },
-          { name: "Румынская тяга с гантелями", note: "Свободный вес", video: "Видео Dumbbell Romanian Deadlift", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Romanian+Deadlift" }
-        ]
-      }),
-      mkEx({
-        id: "A6_ropePushdown", name: "Разгибание рук с канатом вниз", target: "Трицепс", isIsolation: true,
-        setsFull: "3 × 10–15", setsEarly: "2 подхода",
-        focus: "Одно из основных упражнений программы для задней линии руки",
-        tip: "Локти приклеены к рёбрам",
-        steps: ["Локти находятся возле рёбер.", "Плечевая кость почти не движется.", "Разгибать только локоть.", "Внизу слегка развести концы каната.", "На секунду сократить трицепс.", "Вернуться медленно."],
-        avoid: ["движение плечом", "отрыв локтей от корпуса"],
-        video: "Видео техники Cable Triceps Pushdown — MuscleWiki",
-        videoUrl: "https://www.youtube.com/results?search_query=Cable+Triceps+Pushdown+MuscleWiki",
-        alternatives: [
-          { name: "Французский жим с гантелями", note: "Свободный вес", video: "Видео Dumbbell Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Skullcrusher+technique" },
-          { name: "Узкий жим гантелей лёжа", note: "Свободный вес", video: "Видео Close Grip Dumbbell Press", videoUrl: "https://www.youtube.com/results?search_query=Close+Grip+Dumbbell+Press" }
-        ]
-      }),
-      mkEx({
-        id: "A7_birdDog", name: "Bird Dog", target: "Стабилизация корпуса, ягодицы", isIsolation: true,
-        setsFull: "2 × 8–10 на сторону", setsEarly: "2 × 8–10 на сторону",
-        focus: "Контроль вращения таза",
-        tip: "Таз как стакан с водой — не расплескать",
-        steps: ["Встать на четвереньки: кисти под плечами, колени под тазом.", "Вытянуть противоположные руку и ногу.", "Не разворачивать таз и не увеличивать прогиб в пояснице.", "Медленно вернуться."],
-        avoid: ["разворот таза", "усиление прогиба поясницы"],
-        video: "Видео Bird Dog — Hinge Health",
-        videoUrl: "https://www.youtube.com/results?search_query=Bird+Dog+exercise+Hinge+Health",
-        alternatives: [
-          { name: "Dead bug", note: "Альтернатива", video: "Видео Dead Bug", videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+exercise" },
-          { name: "Bear plank с попеременным отрывом руки или ноги", note: "Сложный вариант", video: "Видео Bear Plank Limb Lifts", videoUrl: "https://www.youtube.com/results?search_query=Bear+Plank+Limb+Lifts" }
-        ]
-      }),
-      mkEx({
-        id: "A8_sidePlank", name: "Боковая планка с колен", target: "Косые + средняя ягодичная", isIsolation: true,
-        setsFull: "2 × 20–30 сек на сторону", setsEarly: "2 × 20–30 сек на сторону",
-        focus: "Боковая стабилизация корпуса",
-        tip: "Оттолкни пол • таз вверх • корпус длинный",
-        steps: ["Локоть строго под плечом, колени согнуты.", "Поднять таз.", "Плечо, таз и колени образуют одну линию.", "Не разворачивать грудь к полу."],
-        avoid: ["разворот груди к полу", "провисание таза"],
-        video: "Видео Side Plank — Hinge Health",
-        videoUrl: "https://www.youtube.com/results?search_query=Side+Plank+knees+Hinge+Health",
-        alternatives: [
-          { name: "Боковая планка с прямыми ногами", note: "Прогрессия", video: "Видео Side Plank", videoUrl: "https://www.youtube.com/results?search_query=Side+Plank+straight+legs" },
-          { name: "Suitcase hold или carry с одной гантелью", note: "С отягощением", video: "Видео Suitcase Carry", videoUrl: "https://www.youtube.com/results?search_query=Suitcase+Carry+exercise" }
-        ]
-      }),
-    ],
-  },
-  B: {
-    label: "Тренировка B",
-    focus: "задняя поверхность бедра • ягодицы • спина • плечи • длинная головка трицепса",
-    exercises: [
-      mkEx({
-        id: "B1_dumbbellRDL", name: "Румынская тяга с гантелями", target: "Задняя поверхность бедра + ягодицы",
-        setsFull: "4 × 8–10", setsEarly: "2 × 8–10",
-        focus: "Таз отправляется далеко назад, колени почти не меняют угол",
-        tip: "Не приседай — отводи таз назад",
-        steps: ["Колени слегка согнуты и почти не меняют угол.", "Гантели идут близко вдоль ног.", "Таз отправляется далеко назад.", "Спина сохраняет естественное положение.", "Опускаться до выраженного натяжения задней поверхности бедра.", "Встать за счёт разгибания тазобедренного сустава."],
-        avoid: ["превращение в присед", "округление поясницы"],
-        video: "Видео Romanian Deadlift — Jeff Nippard",
-        videoUrl: "https://www.youtube.com/results?search_query=Romanian+Deadlift+Dumbbell+Jeff+Nippard",
-        alternatives: [
-          { name: "Romanian deadlift в Смите", note: "Направляющие", video: "Видео Smith Machine RDL", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Romanian+Deadlift" },
-          { name: "Cable pull-through", note: "Нижний блок", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" }
-        ]
-      }),
-      mkEx({
-        id: "B2_stepUp", name: "Step-up на невысокую платформу", target: "Ягодицы + квадрицепс + устойчивость",
-        setsFull: "3 × 8 на ногу", setsEarly: "2 × 8 на ногу",
-        focus: "Невысокая платформа, можно держаться рукой за опору",
-        tip: "Вся стопа сверху • толкай платформу рабочей ногой",
-        steps: ["Вся стопа рабочей ноги находится на платформе.", "Корпус слегка наклонён вперёд.", "Подняться главным образом за счёт ноги, стоящей сверху.", "Нижней ногой не отталкиваться.", "Спускаться контролируемо."],
-        avoid: ["отталкивание нижней ногой", "резкий спуск"],
-        note: "Если колено реагирует неприятно — сразу заменить, не продолжать через боль.",
-        video: "Видео техники Step-up",
-        videoUrl: "https://www.youtube.com/results?search_query=Glute+Step+Up+technique",
-        alternatives: [
-          { name: "Односторонний leg press", note: "Тренажёр", video: "Видео Single Leg Press", videoUrl: "https://www.youtube.com/results?search_query=Single+leg+press+technique" },
-          { name: "Cable pull-through, 3 × 12", note: "Если колено болит", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" }
-        ]
-      }),
-      mkEx({
-        id: "B3_seatedCableRow", name: "Горизонтальная тяга блока", target: "Середина спины + широчайшие",
-        setsFull: "3 × 10–12", setsEarly: "2 подхода",
-        focus: "Тянуть к нижним рёбрам, локти назад",
-        tip: "Лопатки → локти назад",
-        steps: ["Ноги устойчивы, грудная клетка спокойно поднята, плечи вниз.", "Тянуть нейтральную рукоять к нижним рёбрам или животу.", "Направлять локти назад.", "Не раскачивать корпус."],
-        avoid: ["раскачивание корпусом", "тяга вверх к груди"],
-        video: "Видео Seated Cable Row нейтральным хватом",
-        videoUrl: "https://www.youtube.com/results?search_query=Seated+Cable+Row+neutral+grip",
-        alternatives: [
-          { name: "Тяга двух гантелей лёжа грудью на наклонной скамье", note: "Свободный вес", video: "Видео Chest Supported Dumbbell Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Dumbbell+Row+incline" },
-          { name: "Seated row с опорой грудью", note: "Тренажёр", video: "Видео Chest Supported Machine Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Machine+Row" }
-        ]
-      }),
-      mkEx({
-        id: "B4_machineShoulderPress", name: "Жим вверх в тренажёре", target: "Дельтовидные + трицепс",
-        setsFull: "3 × 8–10", setsEarly: "2 подхода",
-        focus: "Более выраженное плечо делает руку визуально плотнее",
-        tip: "Рёбра над тазом • плечи далеко от ушей",
-        steps: ["Спина опирается на спинку.", "Рёбра не выпячивать.", "Локти немного впереди фронтальной линии плеч.", "Выжать рукояти вверх.", "Не поднимать плечи к ушам."],
-        avoid: ["подъём плеч к ушам", "прогиб в пояснице"],
-        video: "Видео Machine Shoulder Press",
-        videoUrl: "https://www.youtube.com/results?search_query=Machine+Shoulder+Press+technique",
-        alternatives: [
-          { name: "Жим гантелей сидя с опорой спины", note: "Свободный вес", video: "Видео Seated Dumbbell Shoulder Press", videoUrl: "https://www.youtube.com/results?search_query=Seated+Dumbbell+Shoulder+Press" },
-          { name: "Landmine press со штангой", note: "Штанга", video: "Видео Landmine Press", videoUrl: "https://www.youtube.com/results?search_query=Single+arm+Landmine+Press" }
-        ]
-      }),
-      mkEx({
-        id: "B5_hipAbductionMachine", name: "Разведение бёдер в тренажёре", target: "Средняя и верхнебоковая ягодичная", isIsolation: true,
-        setsFull: "3 × 15–20", setsEarly: "2 подхода",
-        focus: "Пауза в разведённом положении",
-        tip: "Развести → пауза → медленно вернуть",
-        steps: ["Таз стабилен; допустимо немного наклонить корпус вперёд.", "Развести колени.", "Задержаться на секунду.", "Медленно вернуть."],
-        avoid: ["раскачивание тазом", "рывки"],
-        video: "Видео Hip Abduction Machine — StrengthLog",
-        videoUrl: "https://www.youtube.com/results?search_query=Hip+Abduction+Machine+StrengthLog",
-        alternatives: [
-          { name: "Отведение ноги в сторону в кроссовере", note: "Нижний блок", video: "Видео Cable Hip Abduction", videoUrl: "https://www.youtube.com/results?search_query=Cable+Hip+Abduction" },
-          { name: "Отведение ноги лёжа на боку с манжетой-утяжелителем", note: "На коврике", video: "Видео Lying Side Hip Abduction", videoUrl: "https://www.youtube.com/results?search_query=Lying+Side+Hip+Abduction+ankle+weights" }
-        ]
-      }),
-      mkEx({
-        id: "B6_overheadRopeExtension", name: "Разгибание рук с канатом из-за головы", target: "Трицепс (длинная головка)", isIsolation: true,
-        setsFull: "3 × 10–15", setsEarly: "2 подхода",
-        focus: "Важное упражнение для задней поверхности руки — без необходимости не заменять",
-        tip: "Локти вверх • двигаются только предплечья",
-        steps: ["Встать спиной к блоку.", "Локти направлены вперёд и вверх.", "Верхняя часть руки практически неподвижна.", "Согнуть локти, дать трицепсу растянуться.", "Полностью разогнуть руки.", "Не прогибаться поясницей."],
-        avoid: ["прогиб поясницы", "движение локтями вперёд-назад"],
-        video: "Видео Overhead Cable Triceps Extension",
-        videoUrl: "https://www.youtube.com/results?search_query=Overhead+Cable+Triceps+Extension",
-        alternatives: [
-          { name: "Разгибание одной гантели из-за головы двумя руками", note: "Свободный вес", video: "Видео Overhead Dumbbell Triceps Extension", videoUrl: "https://www.youtube.com/results?search_query=Seated+Overhead+Dumbbell+Triceps+Extension" },
-          { name: "Французский жим EZ-грифом или гантелями лёжа", note: "Свободный вес", video: "Видео EZ Bar Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=EZ+Bar+Skullcrusher+technique" }
-        ]
-      }),
-      mkEx({
-        id: "B7_deadBug", name: "Dead Bug", target: "Глубокие мышцы живота", isIsolation: true,
-        setsFull: "2 × 8–10 на сторону", setsEarly: "2 × 8–10 на сторону",
-        focus: "Контроль положения таза и рёбер",
-        tip: "Двигаются руки и ноги — корпус остаётся",
-        steps: ["Лёжа на спине, руки направить вверх, колени согнуть примерно до 90°.", "Вытянуть противоположные руку и ногу.", "Пояснично-тазовая область остаётся стабильной.", "Остановить амплитуду там, где начинает теряться контроль корпуса."],
-        avoid: ["прогиб поясницы от пола", "потеря контроля амплитуды"],
-        video: "Видео Dead Bug — Hinge Health",
-        videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+exercise+Hinge+Health",
-        alternatives: [
-          { name: "Heel taps — попеременные касания пяткой пола", note: "Легче", video: "Видео Alternating Heel Taps", videoUrl: "https://www.youtube.com/results?search_query=Alternating+Heel+Taps+core" },
-          { name: "Dead bug только ногами", note: "Легче", video: "Видео Dead Bug Legs Only", videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+legs+only" }
-        ]
-      }),
-    ],
-  },
-  C: {
-    label: "Тренировка C",
-    focus: "всё тело • ягодицы • плечи • руки • кор",
-    exercises: [
-      mkEx({
-        id: "C1_gobletBoxSquat", name: "Goblet squat до бокса", target: "Ноги + ягодицы",
-        setsFull: "3 × 8–10", setsEarly: "2 подхода",
-        focus: "Коснуться скамьи без расслабления",
-        tip: "Садись к боксу, но не падай на него",
-        steps: ["Держать гантель вертикально перед грудью.", "Поставить стопы в индивидуально комфортное положение.", "Направить таз назад и вниз к скамье, колени ведутся по стопам.", "Коснуться скамьи без расслабления.", "Встать."],
-        avoid: ["расслабление на скамье", "колени внутрь"],
-        video: "Видео Goblet Squat — NASM",
-        videoUrl: "https://www.youtube.com/results?search_query=Goblet+Box+Squat+NASM",
-        alternatives: [
-          { name: "Жим ногами", note: "Тренажёр", video: "Видео Leg Press", videoUrl: "https://www.youtube.com/results?search_query=Leg+Press+technique" },
-          { name: "Присед в Смите до бокса", note: "Направляющие", video: "Видео Smith Machine Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Box+Squat" }
-        ]
-      }),
-      mkEx({
-        id: "C2_gluteBackExtension", name: "Гиперэкстензия с ягодичным акцентом", target: "Ягодицы + задняя поверхность бедра",
-        setsFull: "3 × 10–12", setsEarly: "2 подхода",
-        focus: "Останавливаться на прямой линии тела, не выше",
-        tip: "До прямой линии — не дальше",
-        steps: ["Верх подушки расположен так, чтобы тазобедренный сустав мог свободно сгибаться.", "Опуститься за счёт сгибания в тазобедренных; допустимо слегка округлить верх спины.", "Подняться сокращением ягодиц.", "Остановиться, когда тело образовало прямую линию; выше не подниматься."],
-        avoid: ["переразгибание поясницы вверху"],
-        video: "Видео ягодичной 45° Back Extension — MuscleWiki",
-        videoUrl: "https://www.youtube.com/results?search_query=Glute+Focused+45+Degree+Back+Extension",
-        alternatives: [
-          { name: "Cable pull-through", note: "Нижний блок", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" },
-          { name: "Румынская тяга в Смите", note: "Направляющие", video: "Видео Smith Machine RDL", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Romanian+Deadlift" }
-        ]
-      }),
-      mkEx({
-        id: "C3_oneArmDumbbellRow", name: "Тяга гантели одной рукой", target: "Широчайшие + середина спины",
-        setsFull: "3 × 10 на сторону", setsEarly: "2 подхода",
-        focus: "Корпус неподвижен, локоть к заднему карману",
-        tip: "Локоть к заднему карману",
-        steps: ["Одной рукой опереться на скамью.", "Сохранять корпус неподвижным и не тянуть плечо к уху.", "Вести локоть назад и немного к тазу.", "Опустить гантель контролируемо."],
-        avoid: ["скручивание корпуса", "тяга плечом к уху"],
-        video: "Видео One-arm Dumbbell Row — Bodybuilding.com",
-        videoUrl: "https://www.youtube.com/results?search_query=One-arm+Dumbbell+Row+Bodybuilding",
-        alternatives: [
-          { name: "Односторонняя горизонтальная тяга блока", note: "Тренажёр", video: "Видео Single Arm Cable Row", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Seated+Cable+Row" },
-          { name: "Row с опорой грудью", note: "Тренажёр", video: "Видео Chest Supported Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Row" }
-        ]
-      }),
-      mkEx({
-        id: "C4_inclineDumbbellPress", name: "Жим гантелей на наклонной скамье", target: "Верх груди + передняя дельта + трицепс",
-        setsFull: "3 × 8–12", setsEarly: "2 подхода",
-        focus: "Угол скамьи 30–45°, лопатки стабильны",
-        tip: "Лопатки стабильны • локти под контролем",
-        steps: ["Установить угол скамьи примерно 30–45°.", "Стопы устойчивы, лопатки опираются на скамью.", "Локти примерно под углом 45° к корпусу.", "Опустить гантели контролируемо.", "Выжать вверх без столкновения гантелей."],
-        avoid: ["столкновение гантелей вверху", "отрыв таза от скамьи"],
-        video: "Видео Incline Dumbbell Press — MuscleWiki",
-        videoUrl: "https://www.youtube.com/results?search_query=Incline+Dumbbell+Press+MuscleWiki",
-        alternatives: [
-          { name: "Наклонный chest press", note: "Тренажёр", video: "Видео Incline Machine Press", videoUrl: "https://www.youtube.com/results?search_query=Incline+Machine+Chest+Press" },
-          { name: "Жим в Смите на наклонной скамье", note: "Направляющие", video: "Видео Smith Machine Incline Press", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Incline+Press" }
-        ]
-      }),
-      mkEx({
-        id: "C5_cableGluteKickback", name: "Отведение ноги назад в кроссовере", target: "Большая ягодичная", isIsolation: true,
-        setsFull: "3 × 12–15 на ногу", setsEarly: "2 подхода",
-        focus: "Нога назад ягодицей, а не поясницей",
-        tip: "Нога назад ягодицей, а не поясницей",
-        steps: ["Закрепить манжету на голени или лодыжке.", "Слегка наклонить корпус вперёд, таз направить прямо.", "Отвести ногу назад из тазобедренного сустава.", "Не пытаться поднять её максимально высоко.", "Медленно вернуть."],
-        avoid: ["прогиб поясницы для увеличения амплитуды"],
-        video: "Видео Cable Glute Kickback — SET FOR SET",
-        videoUrl: "https://www.youtube.com/results?search_query=Cable+Glute+Kickback+SET+FOR+SET",
-        alternatives: [
-          { name: "Glute kickback machine", note: "Тренажёр", video: "Видео Glute Kickback Machine", videoUrl: "https://www.youtube.com/results?search_query=Glute+Kickback+Machine" },
-          { name: "Одноногий hip thrust с гантелью", note: "Свободный вес", video: "Видео Single Leg Hip Thrust", videoUrl: "https://www.youtube.com/results?search_query=Single+Leg+Dumbbell+Hip+Thrust" }
-        ]
-      }),
-      mkEx({
-        id: "C6_dumbbellLateralRaise", name: "Разведение гантелей в стороны", target: "Средняя дельта", isIsolation: true,
-        setsFull: "3 × 12–15", setsEarly: "2 подхода",
-        focus: "Более выраженная линия плеча делает руку собраннее",
-        tip: "Локти ведут • кисти не выше локтей",
-        steps: ["Локти слегка согнуты.", "Руки идут не строго в стороны, а примерно на 20–30° вперёд.", "Локти ведут движение.", "Поднять руки до уровня плеч или немного ниже.", "Опустить медленно."],
-        avoid: ["рывок трапециями", "кисти выше локтей"],
-        video: "Видео Lateral Raise — Jeff Nippard",
-        videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Lateral+Raise+Jeff+Nippard",
-        alternatives: [
-          { name: "Lateral raise machine", note: "Тренажёр", video: "Видео Machine Lateral Raise", videoUrl: "https://www.youtube.com/results?search_query=Machine+Lateral+Raise" },
-          { name: "Одностороннее разведение руки на нижнем блоке", note: "Нижний блок", video: "Видео Cable Lateral Raise", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Cable+Lateral+Raise" }
-        ]
-      }),
-      mkEx({
-        id: "C7_farmerCarry", name: "Фермерская прогулка", target: "Хват + плечевой пояс + кор", isIsolation: true,
-        setsFull: "3 × 30–40 м", setsEarly: "2 прохода",
-        focus: "Общая силовая выносливость",
-        tip: "Высокая осанка • тяжёлые руки • тихий корпус",
-        steps: ["Взять две одинаковые гантели по бокам.", "Макушка тянется вверх, рёбра находятся над тазом.", "Не подтягивать плечи к ушам.", "Идти обычными шагами без раскачивания корпуса."],
-        avoid: ["раскачивание корпуса", "подъём плеч к ушам"],
-        video: "Видео Dumbbell Farmer Carry",
-        videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Farmer+Carry+technique",
-        alternatives: [
-          { name: "Suitcase carry — одна гантель, затем смена стороны", note: "Односторонняя нагрузка", video: "Видео Suitcase Carry", videoUrl: "https://www.youtube.com/results?search_query=Suitcase+Carry+exercise" },
-          { name: "Cable march — марш на месте с сопротивлением блока", note: "Блок", video: "Видео Cable March", videoUrl: "https://www.youtube.com/results?search_query=Cable+March+core+exercise" }
-        ]
-      }),
-      mkEx({
-        id: "C8_plank", name: "Планка", target: "Передняя стабилизация корпуса", isIsolation: true,
-        setsFull: "2 × 20–30 сек", setsEarly: "2 × 20–30 сек",
-        focus: "Не дольше — качественнее",
-        tip: "Не дольше — качественнее",
-        steps: ["Локти под плечами.", "Макушка тянется вперёд, пятки назад.", "Таз находится между провисанием и «домиком».", "Нижние рёбра слегка собраны, ягодицы умеренно активны."],
-        avoid: ["провисание таза", "поднятый таз домиком"],
-        video: "Видео Plank — Hinge Health",
-        videoUrl: "https://www.youtube.com/results?search_query=Plank+exercise+Hinge+Health",
-        alternatives: [
-          { name: "Высокая планка на ладонях", note: "Прямые руки", video: "Видео High Plank", videoUrl: "https://www.youtube.com/results?search_query=High+Plank+exercise" },
-          { name: "Планка с колен", note: "Легче", video: "Видео Kneeling Plank", videoUrl: "https://www.youtube.com/results?search_query=Kneeling+Plank+exercise" }
-        ]
-      }),
-      mkEx({
-        id: "C9_singleArmCableTriceps", name: "Одностороннее разгибание руки на верхнем блоке", target: "Трицепс", isIsolation: true, weekStart: 5,
-        setsFull: "2 × 12–15 на руку", setsEarly: "2 × 12–15 на руку",
-        focus: "Вместе с A6 и B6 — около 8 подходов на трицепс в неделю",
-        tip: "Плечо стоит — предплечье движется",
-        steps: ["Локоть находится возле корпуса.", "Плечо неподвижно.", "Полностью разогнуть локоть.", "На секунду сократить трицепс.", "Вернуть руку медленно."],
-        avoid: ["движение плечом", "рывки"],
-        video: "Видео Single-arm Cable Triceps Extension",
-        videoUrl: "https://www.youtube.com/results?search_query=Single-arm+Cable+Triceps+Extension",
-        alternatives: [
-          { name: "Одностороннее разгибание гантели из-за головы", note: "Свободный вес", video: "Видео Single Arm Overhead Extension", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Overhead+Dumbbell+Triceps+Extension" },
-          { name: "Французское разгибание одной гантели лёжа", note: "Свободный вес", video: "Видео Single Arm Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Dumbbell+Skullcrusher" }
-        ]
-      }),
-    ],
-  },
-};
-
-const RIR_OPTIONS = [
-  { value: 4, label: "Легко", sub: "осталось 4+", hint: "Можно было продолжать ещё довольно долго; вес пока лёгкий" },
-  { value: 3, label: "Уверенно", sub: "осталось 3", hint: "Ещё три чистых повтора точно получились бы" },
-  { value: 2, label: "Рабочая нагрузка", sub: "осталось 2", hint: "Ещё два повтора возможны, но уже тяжело; основная целевая зона" },
-  { value: 1, label: "Почти предел", sub: "остался 1", hint: "Получился бы только один чистый повтор" },
-  { value: 0, label: "Отказ", sub: "0", hint: "Следующий чистый повтор уже не выполнить" },
-];
-
-const FEEL_OPTIONS = ["Легко", "Нормально", "Тяжело"];
-
-const CYCLE = ["A", "B", "C"];
-
-function getPhase(week) {
-  if (week <= 2) return { key: "early", label: "Недели 1–2 · базовый объём", rirTarget: "осталось 3", deloadFactor: 1 };
-  if (week <= 4) return { key: "full", label: "Недели 3–4 · полный объём", rirTarget: "осталось 2", deloadFactor: 1 };
-  if (week <= 8) return { key: "full_c9", label: "Недели 5–8 · полный объём + доп. трицепс", rirTarget: "осталось 2", deloadFactor: 1 };
-  if (week <= 11) return { key: "progress", label: "Недели 9–11 · прогрессия веса", rirTarget: "1–2", deloadFactor: 1 };
-  if (week === 12) return { key: "deload", label: "Неделя 12 · разгрузка", rirTarget: "легко / умеренно", deloadFactor: 0.6 };
-  return { key: "optional", label: "Недели 13–16 · опционально", rirTarget: "осталось 2", deloadFactor: 1 };
-}
-
-function setsForExercise(ex, week) {
-  const phase = getPhase(week);
-  let base = week <= 2 ? ex.setsEarly : ex.setsFull;
-  if (phase.key === "deload") {
-    const m = base.match(/(\d+)/);
-    if (m) {
-      const n = Math.max(1, Math.round(parseInt(m[1], 10) * phase.deloadFactor));
-      base = base.replace(/^\d+/, String(n));
-    }
-  }
-  return base;
-}
-
-function exercisesForLetter(letter, week) {
-  return PROGRAM[letter].exercises.filter((ex) => week >= ex.weekStart);
-}
-
-const PRESETS = {
-  vacation: {
-    label: "Отпуск",
-    schedule: [
-      { day: "Вторник", activity: "Тренажёрный зал", time: "10:00" },
-      { day: "Четверг", activity: "Тренажёрный зал", time: "10:00" },
-      { day: "Суббота", activity: "Тренажёрный зал", time: "10:00" },
-      { day: "Понедельник", activity: "Йога", time: "утро" },
-      { day: "Среда", activity: "Йога", time: "день" },
-      { day: "Суббота", activity: "Бассейн", time: "выходные" },
-      { day: "Воскресенье", activity: "Полное восстановление", time: "весь день" },
-    ],
-  },
-  office: {
-    label: "Офис",
-    schedule: [
-      { day: "Понедельник", activity: "Зал", time: "после 20:00" },
-      { day: "Среда", activity: "Зал", time: "после 20:00" },
-      { day: "Пятница", activity: "Зал", time: "после 20:00" },
-      { day: "Понедельник", activity: "Йога", time: "раннее утро" },
-      { day: "Среда", activity: "Йога", time: "вечер" },
-      { day: "Суббота", activity: "Бассейн", time: "выходные" },
-    ],
-  },
-};
-
-/* ======================================================================
-   ХРАНИЛИЩЕ
-====================================================================== */
-
-const STORAGE_KEY = "recomposition50_state_v1";
-
-function defaultState() {
-  return {
-    onboarded: false,
-    onboardStep: 0,
-    profile: { name: "Елена", age: 50, height: 164, weight: 70.1, bmi: 26.8, bodyFat: 33.5, leanMass: 48 },
-    goals: {
-      durationWeeks: 12, targetWeightMin: 67, targetWeightMax: 68,
-      waistMin: 4, waistMax: 7, secondStageWeight: 64,
-    },
-    preset: "vacation",
-    schedule: PRESETS.vacation.schedule,
-    nutritionGoals: { calories: 1650, protein: 110, fat: 55, carbs: 140, meals: 3, exclusions: "", window: "" },
-    programStartDate: new Date().toISOString().slice(0, 10),
-    cycleCount: 0,
-    startingRecordDone: false,
-    workingWeights: initialWorkingWeights,
-    workoutHistory: [],
-    measurements: [],
-    photos: [],
-    nutritionLog: {},
-    customFoods: [],
-    activeSession: null,
-    settings: { textSize: "large" },
-    demoDataAdded: false,
-  };
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    const parsed = JSON.parse(raw);
-    return { ...defaultState(), ...parsed };
-  } catch (e) {
-    return defaultState();
-  }
-}
-
-function saveState(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error("Ошибка сохранения", e);
-  }
-}
-
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function weekNumberFor(state) {
-  const start = new Date(state.programStartDate);
-  const now = new Date();
-  const diffDays = Math.max(0, Math.floor((now - start) / 86400000));
-  return Math.min(16, Math.floor(diffDays / 7) + 1);
-}
-
-function nextLetter(state) {
-  return CYCLE[state.cycleCount % 3];
-}
-
-/* ======================================================================
-   СТИЛИ
-====================================================================== */
-
-const CSS = `
-:root{
-  --deep:#1F201E; --deepmoss:#30352F; --sage:#A3AB96; --milk:#F3EEE5; --stone:#DBD6CE;
-  --brass:#B89A5A; --success:#71866F; --warning:#B28A52; --error:#A85F52;
-  --sage-soft: rgba(163,171,150,0.16); --milk-soft: rgba(243,238,229,0.10);
-  --r-lg:22px; --r-md:16px; --r-pill:999px;
-  --fs-scale: 1;
-}
-.tx-normal{ --fs-scale: 0.92; }
-.tx-large{ --fs-scale: 1; }
-.tx-max{ --fs-scale: 1.18; }
-
-.r50-root{
-  font-family: 'Geologica','Manrope',Inter,system-ui,sans-serif;
-  background: linear-gradient(160deg, var(--deep) 0%, var(--deepmoss) 100%);
-  color: var(--milk);
-  min-height: 100vh;
-  width: 100%;
-  max-width: 460px;
-  margin: 0 auto;
-  position: relative;
-  overflow-x: hidden;
-  padding-bottom: calc(84px + env(safe-area-inset-bottom));
-  font-size: calc(16px * var(--fs-scale));
-  line-height: 1.5;
-}
-.r50-root *{ box-sizing: border-box; }
-.r50-scroll{ padding: 18px 16px 8px; }
-
-.eyebrow{ font-size: calc(13px * var(--fs-scale)); letter-spacing: .04em; color: var(--stone); font-weight:600; text-transform: none;}
-.h1{ font-size: calc(26px * var(--fs-scale)); font-weight:700; color: var(--milk); margin: 2px 0 4px; }
-.h2{ font-size: calc(20px * var(--fs-scale)); font-weight:700; color: var(--milk); margin: 0 0 10px;}
-.muted{ color: var(--stone); font-size: calc(15px * var(--fs-scale)); }
-.muted-dark{ color: rgba(31,32,30,0.62); font-size: calc(15px * var(--fs-scale)); }
-
-.card-dark{
-  background: linear-gradient(160deg, rgba(48,53,47,0.9), rgba(31,32,30,0.9));
-  border: 1px solid var(--milk-soft);
-  border-radius: var(--r-lg);
-  padding: 18px;
-  margin-bottom: 14px;
-}
-.card-light{
-  background: var(--milk);
-  color: var(--deep);
-  border-radius: var(--r-lg);
-  padding: 18px;
-  margin-bottom: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-}
-.card-stone{
-  background: var(--stone);
-  color: var(--deep);
-  border-radius: var(--r-md);
-  padding: 14px 16px;
-  margin-bottom: 10px;
-}
-
-.btn{
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  min-height: 52px; border-radius: var(--r-pill); border:none; cursor:pointer;
-  font-family: inherit; font-weight:700; font-size: calc(18px * var(--fs-scale));
-  padding: 12px 22px; transition: transform .15s ease, opacity .15s ease;
-}
-.btn:active{ transform: scale(0.98); }
-.btn-primary-dark{ background: var(--sage); color: var(--deep); }
-.btn-primary-light{ background: var(--deep); color: var(--milk); }
-.btn-ghost{ background: transparent; color: var(--milk); border: 1px solid var(--milk-soft); }
-.btn-ghost-dark{ background: transparent; color: var(--deep); border: 1px solid rgba(31,32,30,0.18); }
-.btn-danger{ background: transparent; color: var(--error); border: 1px solid rgba(168,95,82,0.4); }
-.btn-sm{ min-height: 44px; font-size: calc(15px * var(--fs-scale)); padding: 8px 16px; }
-.btn:disabled{ opacity:.4; cursor:default; }
-
-.pill{
-  display:inline-flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: var(--r-pill);
-  font-size: calc(14px * var(--fs-scale)); font-weight:600; background: var(--sage-soft); color: var(--sage);
-}
-.pill-stone{ background: var(--stone); color: var(--deep); }
-.pill-brass{ background: rgba(184,154,90,0.16); color: var(--brass); }
-
-.tapzone{ min-height:48px; min-width:48px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:inherit; cursor:pointer; }
-
-.bottomnav{
-  position: fixed; left:50%; transform: translateX(-50%); bottom:0; width:100%; max-width:460px;
-  background: rgba(31,32,30,0.92); backdrop-filter: blur(14px);
-  border-top: 1px solid var(--milk-soft);
-  display:flex; justify-content: space-around;
-  padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
-  z-index: 40;
-}
-.navitem{ display:flex; flex-direction:column; align-items:center; gap:4px; color: var(--stone); background:none; border:none; font-family:inherit; min-width:56px; min-height:48px; cursor:pointer; transition: color .2s;}
-.navitem.active{ color: var(--sage); }
-.navitem span{ font-size: calc(12px * var(--fs-scale)); font-weight:600; }
-
-.topbar{
-  position: sticky; top:0; z-index: 30; background: linear-gradient(180deg, var(--deep) 70%, rgba(31,32,30,0));
-  padding: 14px 16px 6px; display:flex; align-items:center; gap:10px;
-}
-.progressbar{ height:6px; border-radius:6px; background: rgba(243,238,229,0.14); overflow:hidden; flex:1;}
-.progressbar > div{ height:100%; background: var(--sage); border-radius:6px; transition: width .3s ease;}
-
-.tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; scrollbar-width: none;}
-.tabs::-webkit-scrollbar { display: none; }
-.tab{ flex-shrink:0; padding: 10px 16px; border-radius: var(--r-pill); background: var(--milk-soft); color: var(--stone); font-weight:600; border:none; font-family:inherit; font-size: calc(15px * var(--fs-scale)); cursor:pointer; min-height:44px; transition: all .2s;}
-.tab.active{ background: var(--sage); color: var(--deep); }
-
-.stepper{ display:flex; align-items:center; gap:16px; }
-.stepper button{ width:48px; height:48px; border-radius:50%; border:none; background: rgba(31,32,30,0.08); color: var(--deep); font-size:22px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.stepper .val{ font-size: calc(28px * var(--fs-scale)); font-weight:700; min-width: 90px; text-align:center; }
-
-.setrow-done{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-radius: var(--r-md); background: rgba(113,134,111,0.14); color: var(--milk); margin-bottom:8px; font-size: calc(16px * var(--fs-scale)); font-weight:600;}
-.setrow-next{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-radius: var(--r-md); background: rgba(243,238,229,0.05); color: var(--stone); margin-bottom:8px; font-size: calc(16px * var(--fs-scale)); }
-
-.choice-row{ display:flex; flex-direction:column; gap:10px; }
-.choice-btn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:14px 16px; border-radius: var(--r-md); border: 2px solid rgba(31,32,30,0.12); background: rgba(31,32,30,0.03); cursor:pointer; font-family:inherit; text-align:left; min-height:56px; transition: all .2s; }
-.choice-btn .lbl{ font-weight:700; font-size: calc(17px * var(--fs-scale)); color: var(--deep); display:flex; align-items:center; gap:8px;}
-.choice-btn .sub{ font-size: calc(14px * var(--fs-scale)); color: rgba(31,32,30,0.6);}
-.choice-btn.selected{ border-color: var(--deep); background: rgba(31,32,30,0.08); }
-
-.choice-btn-dark{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:14px 16px; border-radius: var(--r-md); border: 2px solid rgba(243,238,229,0.12); background: rgba(31,32,30,0.4); cursor:pointer; font-family:inherit; text-align:left; min-height:56px; transition: all .2s; }
-.choice-btn-dark .lbl{ font-weight:700; font-size: calc(17px * var(--fs-scale)); color: var(--milk); display:flex; align-items:center; gap:8px;}
-.choice-btn-dark .sub{ font-size: calc(14px * var(--fs-scale)); color: rgba(243,238,229,0.6);}
-.choice-btn-dark.selected{ border-color: var(--sage); background: rgba(163,171,150,0.1); }
-
-.input-field{ width:100%; border-radius: var(--r-md); border: 1px solid rgba(243,238,229,0.16); background: rgba(243,238,229,0.06); color: var(--milk); padding: 12px 14px; font-size: calc(17px * var(--fs-scale)); font-family: inherit; min-height:48px; outline:none; transition: border .2s;}
-.input-field:focus { border-color: var(--sage); }
-.input-field.light{ background: rgba(31,32,30,0.05); color: var(--deep); border-color: rgba(31,32,30,0.14);}
-.label-field{ font-size: calc(15px * var(--fs-scale)); font-weight:600; color: var(--stone); margin-bottom:6px; display:block;}
-
-.bignum{ font-size: calc(30px * var(--fs-scale)); font-weight:700; letter-spacing:-0.01em; }
-.goldnum{ color: var(--brass); }
-
-.divider{ height:1px; background: var(--milk-soft); margin: 14px 0; }
-
-.sheet-backdrop{ position:fixed; inset:0; background: rgba(0,0,0,0.5); z-index:60; display:flex; align-items:flex-end; }
-.sheet{ background: var(--deepmoss); width:100%; max-width:460px; margin:0 auto; border-radius: 24px 24px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); max-height:85vh; overflow-y:auto; border-top:1px solid var(--milk-soft); }
-
-.chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
-.chip{ padding: 9px 14px; border-radius: var(--r-pill); background: rgba(243,238,229,0.06); color: var(--stone); font-size: calc(14px * var(--fs-scale)); border:1px solid var(--milk-soft); font-family:inherit; cursor:pointer; min-height:40px; transition: all .2s;}
-.chip.active{ background: var(--sage); color: var(--deep); border-color: var(--sage); }
-
-.linechart{ width:100%; height:140px; }
-
-.avoid-line{ color: var(--error); font-size: calc(15px * var(--fs-scale)); }
-`;
-
-/* ======================================================================
-   МЕЛКИЕ КОМПОНЕНТЫ
-====================================================================== */
-
-function Stepper({ value, onChange, step = 1, min = 0, max = 999, suffix = "" }) {
-  return (
-    <div className="stepper">
-      <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} aria-label="Уменьшить"><Minus size={20} /></button>
-      <div className="val">{value}{suffix}</div>
-      <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} aria-label="Увеличить"><Plus size={20} /></button>
-    </div>
-  );
-}
-
-function ProgressRing({ pct, size = 64, color = "var(--sage)", track = "rgba(243,238,229,0.14)" }) {
-  const r = (size - 10) / 2;
-  const c = 2 * Math.PI * r;
-  const off = c - (Math.min(100, pct) / 100) * c;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth="8" fill="none" />
-      <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth="8" fill="none"
-        strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
-    </svg>
-  );
-}
-
-function MiniLineChart({ points, color = "var(--sage)", height = 140 }) {
-  if (!points || points.length < 2) {
-    return <div className="muted" style={{ padding: "20px 0" }}>Недостаточно данных для графика</div>;
-  }
-  const w = 320;
-  const vals = points.map((p) => p.value);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const pad = (max - min) * 0.15 || 1;
-  const lo = min - pad, hi = max + pad;
-  const stepX = w / (points.length - 1);
-  const coords = points.map((p, i) => {
-    const x = i * stepX;
-    const y = height - ((p.value - lo) / (hi - lo)) * height;
-    return [x, y];
-  });
-  const path = coords.map((c, i) => (i === 0 ? `M${c[0]},${c[1]}` : `L${c[0]},${c[1]}`)).join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${height}`} className="linechart" preserveAspectRatio="none">
-      <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.map((c, i) => <circle key={i} cx={c[0]} cy={c[1]} r="3.5" fill={color} />)}
-    </svg>
-  );
-}
-
-function SectionTitle({ children, right }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-      <div className="h2" style={{ marginBottom: 0 }}>{children}</div>
-      {right}
-    </div>
-  );
-}
-
-/* ======================================================================
-   ОНБОРДИНГ
-====================================================================== */
-
-function Onboarding({ state, setState }) {
-  const step = state.onboardStep;
-  const goNext = () => setState((s) => ({ ...s, onboardStep: Math.min(3, s.onboardStep + 1) }));
-  const goBack = () => setState((s) => ({ ...s, onboardStep: Math.max(0, s.onboardStep - 1) }));
-  const finish = () => setState((s) => ({ ...s, onboarded: true }));
-
-  const p = state.profile, g = state.goals, n = state.nutritionGoals;
-
-  const addScheduleItem = () => {
-    setState((s) => ({ ...s, schedule: [...s.schedule, { day: "Новый день", activity: "Активность", time: "00:00" }] }));
-  };
-
-  const updateScheduleItem = (idx, field, value) => {
-    setState((s) => {
-      const newSchedule = [...s.schedule];
-      newSchedule[idx] = { ...newSchedule[idx], [field]: value };
-      return { ...s, schedule: newSchedule };
-    });
-  };
-
-  const removeScheduleItem = (idx) => {
-    setState((s) => ({ ...s, schedule: s.schedule.filter((_, i) => i !== idx) }));
-  };
-
-  return (
-    <div className="r50-root">
-      <div className="r50-scroll">
-        <div style={{ display: "flex", gap: 6, marginTop: 8, marginBottom: 18 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= step ? "var(--sage)" : "rgba(243,238,229,0.14)", transition: 'background 0.3s' }} />
-          ))}
-        </div>
-        <div className="eyebrow">Рекомпозиция 50 · шаг {step + 1} из 4</div>
-
-        {step === 0 && (
-          <>
-            <div className="h1">Стартовая точка</div>
-            <p className="muted">Проверьте данные — их всегда можно изменить.</p>
-            <div className="card-dark">
-              <label className="label-field">Имя</label>
-              <input className="input-field" value={p.name} onChange={(e) => setState((s) => ({ ...s, profile: { ...s.profile, name: e.target.value } }))} />
-              <div className="divider" />
-              {[
-                ["Возраст, лет", "age"], ["Рост, см", "height"], ["Вес, кг", "weight"],
-                ["ИМТ", "bmi"], ["Жир, % (биоимпеданс)", "bodyFat"], ["Безжировая масса, кг", "leanMass"],
-              ].map(([label, key]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                  <label className="label-field">{label}</label>
-                  <input type="number" className="input-field" value={p[key]}
-                    onChange={(e) => setState((s) => ({ ...s, profile: { ...s.profile, [key]: parseFloat(e.target.value) || 0 } }))} />
-                </div>
-              ))}
-              <div className="card-stone" style={{ marginTop: 4 }}>
-                <Info size={16} style={{ marginBottom: 6 }} />
-                <div className="muted-dark">Используем только для динамики в одинаковых условиях. Главные маркеры — талия, фото, посадка одежды и рост рабочих весов.</div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <div className="h1">Цель этапа</div>
-            <div className="card-dark">
-              <div className="muted" style={{ marginBottom: 10 }}>Длительность: {g.durationWeeks} недель (можно продлить до 16)</div>
-              <div className="muted" style={{ marginBottom: 10 }}>Целевой вес первого этапа: {g.targetWeightMin}–{g.targetWeightMax} кг</div>
-              <div className="muted" style={{ marginBottom: 10 }}>Талия: минус {g.waistMin}–{g.waistMax} см</div>
-              <div className="muted" style={{ marginBottom: 10 }}>Более плотные ягодицы и задняя поверхность бедра</div>
-              <div className="muted" style={{ marginBottom: 10 }}>Более собранная линия плеча и трицепса</div>
-              <div className="muted" style={{ marginBottom: 10 }}>Сохранение или рост мышечной массы</div>
-              <div className="divider" />
-              <div className="pill pill-brass">Возможный второй этап: {g.secondStageWeight} кг</div>
-              <div className="muted" style={{ marginTop: 8 }}>Это не текущая ежедневная цель.</div>
-            </div>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <div className="h1">Режим недели</div>
-            <p className="muted">Выберите пресет — все дни и время можно изменить вручную.</p>
-            <div className="choice-row" style={{ marginBottom: 16 }}>
-              {Object.entries(PRESETS).map(([key, preset]) => (
-                <button key={key} className={`choice-btn-dark ${state.preset === key ? "selected" : ""}`}
-                  onClick={() => setState((s) => ({ ...s, preset: key, schedule: preset.schedule }))}>
-                  <div className="lbl">{preset.label}</div>
-                  <div className="sub">{preset.schedule.length} активностей в неделе</div>
-                </button>
-              ))}
-            </div>
-            <div className="card-dark">
-              <div className="muted" style={{ marginBottom: 12 }}>Ваше расписание</div>
-              {state.schedule.map((row, i) => (
-                <div key={i} style={{ padding: "12px 0", borderBottom: i < state.schedule.length - 1 ? "1px solid var(--milk-soft)" : "none" }}>
-                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                    <input className="input-field" style={{ flex: 1, minHeight: 40, padding: "8px 12px" }} value={row.day} onChange={e => updateScheduleItem(i, 'day', e.target.value)} />
-                    <input className="input-field" style={{ width: 100, minHeight: 40, padding: "8px 12px" }} value={row.time} onChange={e => updateScheduleItem(i, 'time', e.target.value)} />
-                  </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <input className="input-field" style={{ flex: 1, minHeight: 40, padding: "8px 12px" }} value={row.activity} onChange={e => updateScheduleItem(i, 'activity', e.target.value)} />
-                    <button className="tapzone" style={{ color: "var(--error)" }} onClick={() => removeScheduleItem(i)} aria-label="Удалить">
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 12 }} onClick={addScheduleItem}>
-                <Plus size={16} /> Добавить активность
-              </button>
-            </div>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <div className="h1">Питание</div>
-            <div className="card-dark">
-              {[
-                ["Дневная калорийность, ккал", "calories"], ["Цель по белку, г", "protein"],
-                ["Цель по жирам, г", "fat"], ["Цель по углеводам, г", "carbs"], ["Число приёмов пищи", "meals"],
-              ].map(([label, key]) => (
-                <div key={key} style={{ marginBottom: 12 }}>
-                  <label className="label-field">{label}</label>
-                  <input type="number" className="input-field" value={n[key]}
-                    onChange={(e) => setState((s) => ({ ...s, nutritionGoals: { ...s.nutritionGoals, [key]: parseFloat(e.target.value) || 0 } }))} />
-                </div>
-              ))}
-              <label className="label-field">Продукты-исключения</label>
-              <input className="input-field" placeholder="например: лактоза" value={n.exclusions}
-                onChange={(e) => setState((s) => ({ ...s, nutritionGoals: { ...s.nutritionGoals, exclusions: e.target.value } }))} style={{ marginBottom: 12 }} />
-              <label className="label-field">Пищевое окно</label>
-              <input className="input-field" placeholder="например: 09:00–20:00" value={n.window}
-                onChange={(e) => setState((s) => ({ ...s, nutritionGoals: { ...s.nutritionGoals, window: e.target.value } }))} />
-            </div>
-          </>
-        )}
-
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          {step > 0 && <button className="btn btn-ghost" style={{ flex: 1 }} onClick={goBack}>Назад</button>}
-          {step < 3
-            ? <button className="btn btn-primary-dark" style={{ flex: 2 }} onClick={goNext}>Далее</button>
-            : <button className="btn btn-primary-dark" style={{ flex: 2 }} onClick={finish}>Начать программу</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ======================================================================
-   НИЖНЯЯ НАВИГАЦИЯ
-====================================================================== */
-
-function BottomNav({ screen, setScreen }) {
-  const items = [
-    ["today", "Сегодня", Home],
-    ["workouts", "Тренировки", Dumbbell],
-    ["nutrition", "Питание", Apple],
-    ["progress", "Прогресс", LineChart],
-    ["more", "Ещё", MoreHorizontal],
-  ];
-  return (
-    <div className="bottomnav">
-      {items.map(([key, label, Icon]) => (
-        <button key={key} className={`navitem ${screen === key ? "active" : ""}`} onClick={() => setScreen(key)}>
-          <Icon size={22} />
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* ======================================================================
-   ЭКРАН «СЕГОДНЯ»
-====================================================================== */
-
-function TodayScreen({ state, setState, startWorkout }) {
-  const week = weekNumberFor(state);
-  const phase = getPhase(week);
-  const letter = nextLetter(state);
-  const todayLog = state.nutritionLog[todayISO()] || { protein: 0, calories: 0 };
-  const proteinPct = Math.min(100, Math.round((todayLog.protein / (state.nutritionGoals.protein || 1)) * 100));
-
-  const [readiness, setReadiness] = useState({ sleep: 3, energy: 3, stress: 3, soreness: 3 });
-
-  const weekDoneCount = state.workoutHistory.filter((h) => h.week === week).length;
-
-  return (
-    <div className="r50-scroll">
-      <div className="eyebrow">Неделя {week} · {phase.label}</div>
-      <div className="h1">{state.profile.name}, сегодня работаем на качество тела</div>
-
-      <div className="card-dark">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span className="muted">Выполнено на этой неделе</span>
-          <span className="pill">{weekDoneCount} трен.</span>
-        </div>
-        <div className="progressbar"><div style={{ width: `${Math.min(100, (weekDoneCount / 3) * 100)}%` }} /></div>
-      </div>
-
-      <div className="card-dark">
-        <div className="muted" style={{ marginBottom: 10 }}>Готовность сегодня</div>
-        {[["sleep", "Сон"], ["energy", "Энергия"], ["stress", "Стресс"], ["soreness", "Мышечная боль"]].map(([key, label]) => (
-          <div key={key} style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span>{label}</span><span className="muted">{readiness[key]}/5</span>
-            </div>
-            <div className="chip-row">
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button key={v} className={`chip ${readiness[key] === v ? "active" : ""}`} style={{ minWidth: 40, padding: "8px 0", textAlign: "center" }}
-                  onClick={() => setReadiness((r) => ({ ...r, [key]: v }))}>{v}</button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card-light">
-        <div className="eyebrow" style={{ color: "rgba(31,32,30,0.55)" }}>Ближайшая тренировка</div>
-        <div style={{ fontSize: "calc(24px * var(--fs-scale))", fontWeight: 700, margin: "4px 0 2px" }}>{PROGRAM[letter].label}</div>
-        <div className="muted-dark" style={{ marginBottom: 14 }}>{PROGRAM[letter].focus}</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-primary-light" style={{ flex: 2 }} onClick={() => startWorkout(letter)}>
-            <Play size={18} /> Начать тренировку
-          </button>
-          <button className="btn btn-ghost-dark" style={{ flex: 1 }} onClick={() => alert("Тренировку перенесли. Порядок программы сохранён.")}>
-            Перенести
-          </button>
-        </div>
-      </div>
-
-      <div className="card-dark">
-        <SectionTitle right={<span className="muted">{todayLog.protein || 0} / {state.nutritionGoals.protein} г</span>}>Белок сегодня</SectionTitle>
-        <div className="progressbar"><div style={{ width: `${proteinPct}%` }} /></div>
-      </div>
-
-      <div className="card-dark">
-        <div className="muted">Мини-чек-лист дня</div>
-        <div className="divider" />
-        {["Тренировка", "Питание", "Сон", "Замер по плану"].map((t, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 6, border: "2px solid var(--sage)" }} />
-            <span>{t}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="muted" style={{ textAlign: "center", padding: "8px 0 20px" }}>Системность сильнее идеальности.</p>
-    </div>
-  );
-}
-
-/* ======================================================================
-   ЭКРАН «ТРЕНИРОВКИ»
-====================================================================== */
-
-function WorkoutsScreen({ state, setState, startWorkout }) {
-  const [tab, setTab] = useState("program");
-  const week = weekNumberFor(state);
-  const [progLetter, setProgLetter] = useState("A");
-  const [openExercise, setOpenExercise] = useState(null);
-
-  const tabs = [["calendar", "Календарь"], ["program", "Программа A / B / C"], ["yoga", "Йога и бассейн"], ["history", "История"], ["exercises", "Упражнения"]];
-
-  return (
-    <div className="r50-scroll">
-      <div className="h1" style={{ fontSize: "calc(24px * var(--fs-scale))" }}>Тренировки</div>
-      <div className="tabs">
-        {tabs.map(([key, label]) => (
-          <button key={key} className={`tab ${tab === key ? "active" : ""}`} onClick={() => setTab(key)}>{label}</button>
-        ))}
-      </div>
-
-      {tab === "calendar" && (
-        <div>
-          <div className="card-dark">
-            <div className="muted" style={{ marginBottom: 8 }}>Ближайшая тренировка</div>
-            <div className="h2">{PROGRAM[nextLetter(state)].label}</div>
-            <button className="btn btn-primary-dark" style={{ width: "100%" }} onClick={() => startWorkout(nextLetter(state))}>Начать</button>
-          </div>
-          <div className="card-dark">
-            <div className="muted" style={{ marginBottom: 10 }}>Расписание недели</div>
-            {state.schedule.map((row, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < state.schedule.length - 1 ? "1px solid var(--milk-soft)" : "none" }}>
-                <span>{row.day} · {row.activity}</span><span className="muted">{row.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tab === "program" && (
-        <div>
-          <div className="chip-row" style={{ marginBottom: 14 }}>
-            {["A", "B", "C"].map((l) => (
-              <button key={l} className={`chip ${progLetter === l ? "active" : ""}`} onClick={() => setProgLetter(l)}>Тренировка {l}</button>
-            ))}
-          </div>
-          <div className="card-dark">
-            <div className="muted">{PROGRAM[progLetter].focus}</div>
-          </div>
-          {exercisesForLetter(progLetter, week).map((ex, i) => (
-            <div key={ex.id} className="card-dark" onClick={() => setOpenExercise(ex)} style={{ cursor: "pointer" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "calc(17px * var(--fs-scale))" }}>{i + 1}. {ex.name}</div>
-                  <div className="muted">{ex.target}</div>
-                </div>
-                <div className="pill">{setsForExercise(ex, week)}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {tab === "yoga" && (
-        <div>
-          <div className="card-dark">
-            <div className="h2">Йога</div>
-            <div className="card-stone" style={{ marginBottom: 8 }}>
-              <div style={{ fontWeight: 700 }}>Силовая практика</div>
-              <div className="muted-dark">45–55 минут</div>
-            </div>
-            <div className="card-stone">
-              <div style={{ fontWeight: 700 }}>Смешанная практика</div>
-              <div className="muted-dark">Умеренная сила + мобильность + дыхание и восстановление</div>
-            </div>
-          </div>
-          <div className="card-dark">
-            <div className="h2">Бассейн</div>
-            <p className="muted">Свободный ввод длительности, дистанции, темпа и комментария. По умолчанию бассейн планируется только на выходные.</p>
-            <button className="btn btn-ghost" style={{ width: "100%" }}>Добавить заплыв</button>
-          </div>
-        </div>
-      )}
-
-      {tab === "history" && (
-        <div>
-          {state.workoutHistory.length === 0 && <p className="muted">История пока пуста. Первая тренировка появится здесь.</p>}
-          {[...state.workoutHistory].reverse().map((h) => (
-            <div key={h.id} className="card-dark">
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 700 }}>{h.isStarting ? "Стартовая запись" : `Тренировка ${h.letter}`}</div>
-                <div className="muted">{h.date}</div>
-              </div>
-              <div className="muted">Неделя {h.week} · {Object.keys(h.exercises || {}).length} упражнений</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {tab === "exercises" && (
-        <div>
-          {["A", "B", "C"].map((l) => (
-            <div key={l} style={{ marginBottom: 14 }}>
-              <div className="muted" style={{ marginBottom: 8 }}>Тренировка {l}</div>
-              {PROGRAM[l].exercises.map((ex) => (
-                <div key={ex.id} className="card-stone" onClick={() => setOpenExercise(ex)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 600 }}>{ex.name}</span>
-                  <ChevronRight size={18} />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {openExercise && <ExerciseInfoSheet ex={openExercise} activeVariantId={openExercise.id} onClose={() => setOpenExercise(null)} />}
-    </div>
-  );
-}
-
-function ExerciseInfoSheet({ ex, activeVariantId, onClose }) {
-  let title = ex.name;
-  let videoLabel = ex.video;
-  let videoLink = ex.videoUrl;
-
-  if (activeVariantId && activeVariantId !== ex.id) {
-    const alt = ex.alternatives?.find((a) => a.name === activeVariantId);
-    if (alt) {
-      title = alt.name;
-      videoLabel = alt.video || `Видео ${alt.name}`;
-      videoLink = alt.videoUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(alt.name + " technique")}`;
-    }
-  }
-
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div className="h2" style={{ marginBottom: 0 }}>{title}</div>
-          <button className="tapzone" onClick={onClose} aria-label="Закрыть"><X size={22} /></button>
-        </div>
-        <div className="pill" style={{ marginBottom: 14 }}>{ex.target}</div>
-        <div className="muted" style={{ marginBottom: 10, fontWeight: 700, color: "var(--milk)" }}>Как делать</div>
-        <ol style={{ paddingLeft: 20, marginBottom: 14 }}>
-          {ex.steps.map((s, i) => <li key={i} style={{ marginBottom: 6 }}>{s}</li>)}
-        </ol>
-        {ex.avoid && ex.avoid.length > 0 && (
-          <>
-            <div className="muted" style={{ marginBottom: 8, fontWeight: 700, color: "var(--milk)" }}>Не делать</div>
-            {ex.avoid.map((a, i) => <div key={i} className="avoid-line">✕ {a}</div>)}
-          </>
-        )}
-        
-        {videoLink && (
-          <a href={videoLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-            <div className="card-stone" style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-              <Play size={18} color="var(--deep)" /> <span className="muted-dark" style={{color: "var(--deep)", fontWeight: 600}}>{videoLabel}</span>
-            </div>
-          </a>
-        )}
-        <p className="muted" style={{ fontSize: "calc(13px * var(--fs-scale))", marginTop: 10 }}>Видео — ориентир по механике движения, а не по рабочим весам и объёму.</p>
-      </div>
-    </div>
-  );
-}
-
-/* ======================================================================
-   ЭКРАН ВЫПОЛНЕНИЯ ТРЕНИРОВКИ (ключевой редизайн)
-====================================================================== */
-
-function WorkoutSession({ state, setState, onExit }) {
-  const session = state.activeSession;
-  const week = session.week;
-  const letter = session.letter;
-  const exList = exercisesForLetter(letter, week);
-  const exIndex = session.exerciseIndex;
-  const ex = exList[exIndex];
-  const exLog = session.log[ex.id] || { variantId: ex.id, sets: [], extraSets: 0 };
-  const setsMatch = setsForExercise(ex, week).match(/(\d+)(?:\s*[×x]\s*(\d+)(?:–|-)?(\d+)?)?/);
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Рекомпозиция 50</title>
   
-  // Учитываем дополнительные подходы к базовым
-  const baseTargetSets = setsMatch ? parseInt(setsMatch[1], 10) : 3;
-  const targetSets = baseTargetSets + (exLog.extraSets || 0);
-  const repMin = setsMatch && setsMatch[2] ? parseInt(setsMatch[2], 10) : 8;
-
-  const [showTech, setShowTech] = useState(false);
-  const [showReplace, setShowReplace] = useState(false);
-  const [weight, setWeight] = useState(() => {
-    const ww = state.workingWeights[exLog.variantId] || state.workingWeights[ex.id];
-    return ww && ww.value != null ? ww.value : ww && ww.valueMin != null ? ww.valueMin : 0;
-  });
-  const [reps, setReps] = useState(repMin);
-  const [feel, setFeel] = useState(null);
-  const [rir, setRir] = useState(null);
-  const [note, setNote] = useState("");
-  const [resting, setResting] = useState(false);
-  const [restLeft, setRestLeft] = useState(0);
-  const [discomfort, setDiscomfort] = useState(0);
-  const timerRef = useRef(null);
-
-  const restBase = ex.isIsolation ? 67 : 105;
-
-  useEffect(() => {
-    if (resting && restLeft > 0) {
-      timerRef.current = setTimeout(() => setRestLeft((t) => t - 1), 1000);
-    } else if (resting && restLeft <= 0) {
-      setResting(false);
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel Standalone for JSX parsing in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=Manrope:wght@400;600;700&display=swap">
+  
+  <style>
+    :root {
+      --deep: #1F201E;
+      --deepmoss: #30352F;
+      --sage: #A3AB96;
+      --milk: #F3EEE5;
+      --stone: #DBD6CE;
+      --brass: #B89A5A;
+      --success: #71866F;
+      --warning: #B28A52;
+      --error: #A85F52;
+      --sage-soft: rgba(163,171,150,0.16);
+      --milk-soft: rgba(243,238,229,0.10);
+      --r-lg: 22px;
+      --r-md: 16px;
+      --r-pill: 999px;
+      --fs-scale: 1;
     }
-    return () => clearTimeout(timerRef.current);
-  }, [resting, restLeft]);
-
-  const updateSession = (patch) => {
-    setState((s) => ({ ...s, activeSession: { ...s.activeSession, ...patch } }));
-  };
-
-  const completeSet = () => {
-    const newSet = { weight, reps, feel: feel || "Нормально", rir: rir == null ? 2 : rir, note, done: true };
-    const newLog = { ...exLog, sets: [...exLog.sets, newSet] };
-    const newLogAll = { ...session.log, [ex.id]: newLog };
-    updateSession({ log: newLogAll });
-    setNote("");
-    setFeel(null);
-    setRir(null);
-    const restSec = restBase;
-    setRestLeft(restSec);
-    setResting(true);
-  };
-
-  const addExtraSet = () => {
-    const newLog = { ...exLog, extraSets: (exLog.extraSets || 0) + 1 };
-    updateSession({ log: { ...session.log, [ex.id]: newLog } });
-  };
-
-  const applyReplacement = (alt) => {
-    updateSession({ log: { ...session.log, [ex.id]: { variantId: alt.name, sets: [], extraSets: 0 } } });
-    setShowReplace(false);
-  };
-
-  const doneCount = exLog.sets.length;
-  const isExerciseDone = doneCount >= targetSets;
-  const lastResult = doneCount > 0 ? exLog.sets[doneCount - 1] : null;
-
-  const goNextExercise = () => {
-    if (exIndex + 1 < exList.length) {
-      updateSession({ exerciseIndex: exIndex + 1 });
-    } else {
-      finishWorkout();
+    
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: var(--deep);
+      color: var(--milk);
+      font-family: 'Geologica', 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
-  };
 
-  const finishWorkout = () => {
-    const record = {
-      id: uid(), letter, date: todayISO(), week,
-      isStarting: !state.startingRecordDone,
-      exercises: session.log, cardio: session.cardio || null, readiness: session.readiness || null, notes: session.finalNote || "",
+    .tx-normal { --fs-scale: 0.92; }
+    .tx-large { --fs-scale: 1; }
+    .tx-max { --fs-scale: 1.18; }
+
+    .r50-root {
+      background: linear-gradient(160deg, var(--deep) 0%, var(--deepmoss) 100%);
+      color: var(--milk);
+      min-height: 100vh;
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      position: relative;
+      overflow-x: hidden;
+      padding-bottom: calc(84px + env(safe-area-inset-bottom));
+      font-size: calc(16px * var(--fs-scale));
+      line-height: 1.5;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    }
+
+    .r50-root * { box-sizing: border-box; }
+    .r50-scroll { padding: 18px 16px 8px; }
+
+    .eyebrow { font-size: calc(13px * var(--fs-scale)); letter-spacing: .04em; color: var(--stone); font-weight: 600; }
+    .h1 { font-size: calc(26px * var(--fs-scale)); font-weight: 700; color: var(--milk); margin: 2px 0 4px; }
+    .h2 { font-size: calc(20px * var(--fs-scale)); font-weight: 700; color: var(--milk); margin: 0 0 10px; }
+    .muted { color: var(--stone); font-size: calc(15px * var(--fs-scale)); }
+    .muted-dark { color: rgba(31,32,30,0.62); font-size: calc(15px * var(--fs-scale)); }
+
+    .card-dark {
+      background: linear-gradient(160deg, rgba(48,53,47,0.9), rgba(31,32,30,0.9));
+      border: 1px solid var(--milk-soft);
+      border-radius: var(--r-lg);
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .card-light {
+      background: var(--milk);
+      color: var(--deep);
+      border-radius: var(--r-lg);
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+    }
+
+    .card-stone {
+      background: var(--stone);
+      color: var(--deep);
+      border-radius: var(--r-md);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 52px; border-radius: var(--r-pill); border: none; cursor: pointer;
+      font-family: inherit; font-weight: 700; font-size: calc(18px * var(--fs-scale));
+      padding: 12px 22px; transition: transform .15s ease, opacity .15s ease;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary-dark { background: var(--sage); color: var(--deep); }
+    .btn-primary-light { background: var(--deep); color: var(--milk); }
+    .btn-ghost { background: transparent; color: var(--milk); border: 1px solid var(--milk-soft); }
+    .btn-ghost-dark { background: transparent; color: var(--deep); border: 1px solid rgba(31,32,30,0.18); }
+    .btn-danger { background: transparent; color: var(--error); border: 1px solid rgba(168,95,82,0.4); }
+    .btn-sm { min-height: 44px; font-size: calc(15px * var(--fs-scale)); padding: 8px 16px; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-pill);
+      font-size: calc(14px * var(--fs-scale)); font-weight: 600; background: var(--sage-soft); color: var(--sage);
+    }
+    .pill-brass { background: rgba(184,154,90,0.16); color: var(--brass); }
+
+    .tapzone { min-height: 48px; min-width: 48px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: inherit; cursor: pointer; }
+
+    .bottomnav {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 460px;
+      background: rgba(31,32,30,0.94); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--milk-soft);
+      display: flex; justify-content: space-around;
+      padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+      z-index: 40;
+    }
+    .navitem { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--stone); background: none; border: none; font-family: inherit; min-width: 56px; min-height: 48px; cursor: pointer; transition: color .2s; }
+    .navitem.active { color: var(--sage); }
+    .navitem span { font-size: calc(12px * var(--fs-scale)); font-weight: 600; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 30; background: linear-gradient(180deg, var(--deep) 70%, rgba(31,32,30,0));
+      padding: 14px 16px 6px; display: flex; align-items: center; gap: 10px;
+    }
+    .progressbar { height: 6px; border-radius: 6px; background: rgba(243,238,229,0.14); overflow: hidden; flex: 1; }
+    .progressbar > div { height: 100%; background: var(--sage); border-radius: 6px; transition: width .3s ease; }
+
+    .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex-shrink: 0; padding: 10px 16px; border-radius: var(--r-pill); background: var(--milk-soft); color: var(--stone); font-weight: 600; border: none; font-family: inherit; font-size: calc(15px * var(--fs-scale)); cursor: pointer; min-height: 44px; }
+    .tab.active { background: var(--sage); color: var(--deep); }
+
+    .stepper { display: flex; align-items: center; gap: 16px; }
+    .stepper button { width: 48px; height: 48px; border-radius: 50%; border: none; background: rgba(31,32,30,0.08); color: var(--deep); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .stepper .val { font-size: calc(28px * var(--fs-scale)); font-weight: 700; min-width: 90px; text-align: center; }
+
+    .setrow-done { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: var(--r-md); background: rgba(113,134,111,0.14); color: var(--milk); margin-bottom: 8px; font-size: calc(16px * var(--fs-scale)); font-weight: 600; }
+
+    .choice-row { display: flex; flex-direction: column; gap: 10px; }
+    .choice-btn-dark { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; border-radius: var(--r-md); border: 2px solid rgba(243,238,229,0.16); background: rgba(31,32,30,0.6); cursor: pointer; font-family: inherit; text-align: left; min-height: 56px; transition: all .2s; width: 100%; }
+    .choice-btn-dark .lbl { font-weight: 700; font-size: calc(16px * var(--fs-scale)); color: var(--milk); display: flex; align-items: center; gap: 8px; }
+    .choice-btn-dark .sub { font-size: calc(14px * var(--fs-scale)); color: rgba(243,238,229,0.7); }
+    .choice-btn-dark.selected { border-color: var(--sage); background: rgba(163,171,150,0.18); }
+
+    .input-field { width: 100%; border-radius: var(--r-md); border: 1px solid rgba(243,238,229,0.16); background: rgba(243,238,229,0.06); color: var(--milk); padding: 12px 14px; font-size: calc(16px * var(--fs-scale)); font-family: inherit; min-height: 48px; outline: none; }
+    .input-field:focus { border-color: var(--sage); }
+    .label-field { font-size: calc(14px * var(--fs-scale)); font-weight: 600; color: var(--stone); margin-bottom: 6px; display: block; }
+
+    .bignum { font-size: calc(30px * var(--fs-scale)); font-weight: 700; }
+    .goldnum { color: var(--brass); }
+
+    .divider { height: 1px; background: var(--milk-soft); margin: 14px 0; }
+
+    .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 60; display: flex; align-items: flex-end; backdrop-filter: blur(4px); }
+    .sheet { background: var(--deepmoss); width: 100%; max-width: 460px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); max-height: 85vh; overflow-y: auto; border-top: 1px solid var(--milk-soft); }
+
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { padding: 9px 14px; border-radius: var(--r-pill); background: rgba(243,238,229,0.06); color: var(--stone); font-size: calc(14px * var(--fs-scale)); border: 1px solid var(--milk-soft); font-family: inherit; cursor: pointer; min-height: 40px; }
+    .chip.active { background: var(--sage); color: var(--deep); border-color: var(--sage); }
+
+    .linechart { width: 100%; height: 140px; }
+    .avoid-line { color: var(--error); font-size: calc(15px * var(--fs-scale)); margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Custom Lightweight SVG Icon Component
+    function Icon({ name, size = 20, color = "currentColor", style = {} }) {
+      const icons = {
+        home: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>,
+        dumbbell: <><path d="M6.5 6.5h11"/><path d="M6.5 17.5h11"/><path d="M18 4v16"/><path d="M6 4v16"/><path d="M3 7v10"/><path d="M21 7v10"/></>,
+        apple: <path d="M12 20.5C6.5 20.5 3 16 3 11a7 7 0 0 1 12.2-4.7c.3.4.8.7 1.3.7 1.5 0 2.5-1 2.5-2.5 0 0 1.5.5 2 2 2 5-3.5 9.5-9 9.5z"/>,
+        linechart: <><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-4 4"/></>,
+        more: <><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></>,
+        chevronRight: <path d="M9 18l6-6-6-6"/>,
+        plus: <path d="M12 5v14M5 12h14"/>,
+        minus: <path d="M5 12h14"/>,
+        x: <path d="M18 6L6 18M6 6l12 12"/>,
+        check: <path d="M20 6L9 17l-5-5"/>,
+        play: <polygon points="5 3 19 12 5 21 5 3"/>,
+        refresh: <><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></>,
+        info: <><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>,
+        camera: <><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>,
+        download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+        upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>,
+        trash: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>,
+        alert: <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+        arrowRight: <><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>,
+        sparkles: <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+      };
+
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', display: 'inline-block', ...style }}>
+          {icons[name] || null}
+        </svg>
+      );
+    }
+
+    /* ======================================================================
+       ПРОГРАММА ТРЕНИРОВОК С ПОЛНЫМИ ССЫЛКАМИ НА YOUTUBE ДЛЯ ВСЕХ УПРАЖНЕНИЙ И ЗАМЕН
+    ====================================================================== */
+
+    const initialWorkingWeights = {
+      A1_hipThrust: { value: 5, unit: "kg", note: "уже освоенный вариант" },
+      A2_legPress: { value: 30, unit: "kg" },
+      A3_neutralLatPulldown: { value: 23, unit: "kg", displayAlt: "50 lb" },
+      A4_machineChestPress: { value: 2, unit: "machineLevel", equipment: "HOIST", note: "дальше калибровать" },
+      A5_seatedLegCurl: { value: 7, unit: "machineLevel", equipment: "HOIST" },
+      A6_ropePushdown: { value: 23, unit: "kg", note: "примерно на 8–10 чистых повторов" },
+      A7_birdDog: { value: null, unit: "bodyweight" },
+      A8_sidePlank: { value: null, unit: "bodyweight" },
+      B1_dumbbellRDL: null, B2_stepUp: null, B3_seatedCableRow: null, B4_machineShoulderPress: null,
+      B5_hipAbductionMachine: { value: 54, unit: "kg", note: "тестовый ориентир" },
+      B6_overheadRopeExtension: null, B7_deadBug: { value: null, unit: "bodyweight" },
+      C1_gobletBoxSquat: null, C2_gluteBackExtension: null, C3_oneArmDumbbellRow: null,
+      C4_inclineDumbbellPress: null, C5_cableGluteKickback: null,
+      C6_dumbbellLateralRaise: { value: 3, unit: "kgEach", note: "далее возможен тест 4 кг" },
+      C7_farmerCarry: { valueMin: 5, valueMax: 6, unit: "kgEach", note: "стартовый тест" },
+      C8_plank: { value: null, unit: "bodyweight" }, C9_singleArmCableTriceps: null,
     };
-    setState((s) => ({
-      ...s,
-      workoutHistory: [...s.workoutHistory, record],
-      cycleCount: record.isStarting ? s.cycleCount : s.cycleCount + 1,
-      startingRecordDone: true,
-      activeSession: null,
-    }));
-  };
 
-  const exitSafely = () => {
-    onExit();
-  };
+    function mkEx(o) { return { isIsolation: false, weekStart: 1, ...o }; }
 
-  const displayVariant = exLog.variantId !== ex.id ? exLog.variantId : ex.name;
+    const PROGRAM = {
+      A: {
+        label: "Тренировка A",
+        focus: "ягодицы • спина • грудь • трицепс • стабилизация корпуса",
+        exercises: [
+          mkEx({
+            id: "A1_hipThrust", name: "Hip Thrust", target: "Ягодицы",
+            setsFull: "4 × 8–10", setsEarly: "2 × 8–10",
+            focus: "Движение заканчивается сокращением ягодиц, а не прогибом поясницы",
+            tip: "Рёбра вниз • таз слегка подкрутить • сжать ягодицы",
+            steps: ["Нижний край лопаток находится на опоре.", "Стопы примерно на ширине таза.", "В верхней точке голени близки к вертикали.", "Поднять таз и слегка сделать задний наклон таза.", "Задержать сокращение ягодиц примерно на 1 секунду.", "Опустить таз контролируемо."],
+            avoid: ["переразгибание поясницы", "толчок носками", "запрокидывание головы"],
+            video: "Видео техники Hip Thrust — Bret Contreras",
+            videoUrl: "https://www.youtube.com/results?search_query=Hip+Thrust+technique+Bret+Contreras",
+            alternatives: [
+              { name: "Hip thrust со штангой на скамье", note: "Свободные веса · тот же двигательный паттерн", video: "Видео Barbell Hip Thrust", videoUrl: "https://www.youtube.com/results?search_query=Barbell+Hip+Thrust+technique" },
+              { name: "Ягодичный мост на полу с гантелью", note: "Свободные веса · более простой вариант", video: "Видео Dumbbell Glute Bridge", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Glute+Bridge+technique" }
+            ]
+          }),
+          mkEx({
+            id: "A2_legPress", name: "Жим ногами", target: "Квадрицепс + ягодицы",
+            setsFull: "3 × 10–12", setsEarly: "2 × 10–12",
+            focus: "Стопы чуть выше середины платформы",
+            tip: "Таз прижат • колени по стопам • медленно вниз",
+            steps: ["Таз и крестец прижаты к спинке.", "Стопы примерно на ширине плеч.", "Колени идут по направлению 2-3 пальца стопы.", "Опускать платформу только до глубины без подкручивания таза.", "Вверху колени полностью не «защёлкивать»."],
+            avoid: ["подкручивание таза внизу", "защёлкивание коленей вверху"],
+            video: "Видео техники Leg Press — Jeff Nippard",
+            videoUrl: "https://www.youtube.com/results?search_query=Leg+Press+technique+Jeff+Nippard",
+            alternatives: [
+              { name: "Goblet squat с гантелью до бокса", note: "Свободный вес", video: "Видео Goblet Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Goblet+Box+Squat+technique" },
+              { name: "Присед в Смите до скамьи", note: "Направляющие", video: "Видео Smith Machine Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Box+Squat" }
+            ]
+          }),
+          mkEx({
+            id: "A3_neutralLatPulldown", name: "Вертикальная тяга нейтральным хватом", target: "Широчайшие + верх спины",
+            setsFull: "3 × 8–12", setsEarly: "2 подхода",
+            focus: "Не тянуть рукоять руками, а двигать локти вниз",
+            tip: "Плечи вниз → локти к рёбрам",
+            steps: ["Сначала опустить плечи от ушей.", "Слегка отклонить корпус назад.", "Тянуть локти вниз к рёбрам.", "Рукоять идёт к верхней части груди.", "Медленно вернуть руки вверх."],
+            avoid: ["тяга только руками", "рывок корпусом"],
+            video: "Видео техники Lat Pulldown — Jeff Nippard",
+            videoUrl: "https://www.youtube.com/results?search_query=Lat+Pulldown+technique+Jeff+Nippard",
+            alternatives: [
+              { name: "Пуловер с гантелью", note: "Близкий по мышцам вариант", video: "Видео Dumbbell Pullover", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Pullover+technique" },
+              { name: "Подтягивания в гравитроне нейтральным хватом", note: "Тренажёр", video: "Видео Assisted Pull-up Neutral Grip", videoUrl: "https://www.youtube.com/results?search_query=Assisted+Pull-up+neutral+grip" }
+            ]
+          }),
+          mkEx({
+            id: "A4_machineChestPress", name: "Жим от груди в тренажёре", target: "Грудные + передняя дельта + трицепс",
+            setsFull: "3 × 8–12", setsEarly: "2 подхода",
+            focus: "Локти под углом 45–60°, не вытягивать плечи за руками",
+            tip: "Лопатки стабильны • плечи вниз • локти не на 90°",
+            steps: ["Настроить сиденье: рукояти на уровне середины груди.", "Лопатки назад и вниз.", "Локти держат угол 45–60°.", "Выжать рукояти вперёд."],
+            avoid: ["локти под 90°", "выброс плеч вперёд"],
+            video: "Видео Chest Press Machine",
+            videoUrl: "https://www.youtube.com/results?search_query=Chest+Press+Machine+technique",
+            alternatives: [
+              { name: "Жим гантелей лёжа", note: "Свободный вес", video: "Видео Dumbbell Bench Press", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Bench+Press+technique" },
+              { name: "Жим штанги лёжа", note: "Свободный вес", video: "Видео Barbell Bench Press", videoUrl: "https://www.youtube.com/results?search_query=Barbell+Bench+Press+technique" }
+            ]
+          }),
+          mkEx({
+            id: "A5_seatedLegCurl", name: "Сгибание ног сидя", target: "Задняя поверхность бедра",
+            setsFull: "3 × 10–15", setsEarly: "2 подхода",
+            focus: "Таз и спина фиксированы, не бросать вес обратно",
+            tip: "Таз неподвижен • сожми заднюю поверхность • не бросай вес",
+            steps: ["Ось вращения тренажёра совпадает с коленом.", "Валик низко на голени.", "Согнуть колени и задержаться на 1 секунду.", "Возвращать медленно."],
+            avoid: ["сброс веса без контроля", "отрыв таза"],
+            video: "Видео техники Seated Leg Curl — NASM",
+            videoUrl: "https://www.youtube.com/results?search_query=Seated+Leg+Curl+technique+NASM",
+            alternatives: [
+              { name: "Сгибание ног на фитболе или слайдерах", note: "Домашний вариант", video: "Видео Swiss Ball Leg Curl", videoUrl: "https://www.youtube.com/results?search_query=Swiss+Ball+Leg+Curl" },
+              { name: "Румынская тяга с гантелями", note: "Свободный вес", video: "Видео Dumbbell Romanian Deadlift", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Romanian+Deadlift" }
+            ]
+          }),
+          mkEx({
+            id: "A6_ropePushdown", name: "Разгибание рук с канатом вниз", target: "Трицепс", isIsolation: true,
+            setsFull: "3 × 10–15", setsEarly: "2 подхода",
+            focus: "Одно из основных упражнений для задней линии руки",
+            tip: "Локти приклеены к рёбрам",
+            steps: ["Локти возле рёбер.", "Разгибать только локоть.", "Внизу слегка развести концы каната.", "На секунду сократить трицепс."],
+            avoid: ["движение плечом", "отрыв локтей"],
+            video: "Видео техники Cable Triceps Pushdown — MuscleWiki",
+            videoUrl: "https://www.youtube.com/results?search_query=Cable+Triceps+Pushdown+MuscleWiki",
+            alternatives: [
+              { name: "Французский жим с гантелями", note: "Свободный вес", video: "Видео Dumbbell Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Skullcrusher+technique" },
+              { name: "Узкий жим гантелей лёжа", note: "Свободный вес", video: "Видео Close Grip Dumbbell Press", videoUrl: "https://www.youtube.com/results?search_query=Close+Grip+Dumbbell+Press" }
+            ]
+          }),
+          mkEx({
+            id: "A7_birdDog", name: "Bird Dog", target: "Стабилизация корпуса, ягодицы", isIsolation: true,
+            setsFull: "2 × 8–10 на сторону", setsEarly: "2 × 8–10 на сторону",
+            focus: "Контроль вращения таза",
+            tip: "Таз как стакан с водой — не расплескать",
+            steps: ["Встать на четвереньки.", "Вытянуть противоположные руку и ногу.", "Не разворачивать таз и не увеличивать прогиб.", "Медленно вернуть."],
+            avoid: ["разворот таза", "усиление прогиба"],
+            video: "Видео Bird Dog — Hinge Health",
+            videoUrl: "https://www.youtube.com/results?search_query=Bird+Dog+exercise+Hinge+Health",
+            alternatives: [
+              { name: "Dead bug", note: "Альтернатива", video: "Видео Dead Bug", videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+exercise" },
+              { name: "Bear plank с попеременным отрывом руки или ноги", note: "Сложный вариант", video: "Видео Bear Plank Limb Lifts", videoUrl: "https://www.youtube.com/results?search_query=Bear+Plank+Limb+Lifts" }
+            ]
+          }),
+          mkEx({
+            id: "A8_sidePlank", name: "Боковая планка с колен", target: "Косые + средняя ягодичная", isIsolation: true,
+            setsFull: "2 × 20–30 сек на сторону", setsEarly: "2 × 20–30 сек на сторону",
+            focus: "Боковая стабилизация корпуса",
+            tip: "Оттолкни пол • таз вверх • корпус длинный",
+            steps: ["Локоть под плечом, колени согнуты.", "Поднять таз.", "Плечо, таз и колени в одну линию."],
+            avoid: ["разворот груди к полу", "провисание таза"],
+            video: "Видео Side Plank — Hinge Health",
+            videoUrl: "https://www.youtube.com/results?search_query=Side+Plank+knees+Hinge+Health",
+            alternatives: [
+              { name: "Боковая планка с прямыми ногами", note: "Прогрессия", video: "Видео Side Plank", videoUrl: "https://www.youtube.com/results?search_query=Side+Plank+straight+legs" },
+              { name: "Suitcase carry с одной гантелью", note: "С отягощением", video: "Видео Suitcase Carry", videoUrl: "https://www.youtube.com/results?search_query=Suitcase+Carry+exercise" }
+            ]
+          }),
+        ],
+      },
+      B: {
+        label: "Тренировка B",
+        focus: "задняя поверхность бедра • ягодицы • спина • плечи • трицепс",
+        exercises: [
+          mkEx({
+            id: "B1_dumbbellRDL", name: "Румынская тяга с гантелями", target: "Задняя поверхность бедра + ягодицы",
+            setsFull: "4 × 8–10", setsEarly: "2 × 8–10",
+            focus: "Таз отправляется далеко назад, колени почти не меняют угол",
+            tip: "Не приседай — отводи таз назад",
+            steps: ["Колени слегка согнуты.", "Гантели идут близко вдоль ног.", "Таз отправляется далеко назад.", "Опускаться до натяжения бедра.", "Встать разгибанием таза."],
+            avoid: ["превращение в присед", "округление поясницы"],
+            video: "Видео Romanian Deadlift — Jeff Nippard",
+            videoUrl: "https://www.youtube.com/results?search_query=Romanian+Deadlift+Dumbbell+Jeff+Nippard",
+            alternatives: [
+              { name: "Romanian deadlift в Смите", note: "Направляющие", video: "Видео Smith Machine RDL", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Romanian+Deadlift" },
+              { name: "Cable pull-through", note: "Нижний блок", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" }
+            ]
+          }),
+          mkEx({
+            id: "B2_stepUp", name: "Step-up на невысокую платформу", target: "Ягодицы + квадрицепс + устойчивость",
+            setsFull: "3 × 8 на ногу", setsEarly: "2 × 8 на ногу",
+            focus: "Невысокая платформа, толкать рабочей ногой",
+            tip: "Вся стопа сверху • толкай платформу рабочей ногой",
+            steps: ["Вся стопа на платформе.", "Корпус слегка наклонён вперёд.", "Подняться за счёт верхней ноги.", "Нижней ногой не отталкиваться."],
+            avoid: ["отталкивание нижней ногой", "резкий спуск"],
+            video: "Видео техники Step-up",
+            videoUrl: "https://www.youtube.com/results?search_query=Glute+Step+Up+technique",
+            alternatives: [
+              { name: "Односторонний leg press", note: "Тренажёр", video: "Видео Single Leg Press", videoUrl: "https://www.youtube.com/results?search_query=Single+leg+press+technique" },
+              { name: "Cable pull-through, 3 × 12", note: "Если болело колено", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" }
+            ]
+          }),
+          mkEx({
+            id: "B3_seatedCableRow", name: "Горизонтальная тяга блока", target: "Середина спины + широчайшие",
+            setsFull: "3 × 10–12", setsEarly: "2 подхода",
+            focus: "Тянуть к нижним рёбрам, локти назад",
+            tip: "Лопатки → локти назад",
+            steps: ["Тянуть нейтральную рукоять к нижним рёбрам.", "Направлять локти назад.", "Не раскачивать корпус."],
+            avoid: ["раскачивание корпусом", "тяга вверх к груди"],
+            video: "Видео Seated Cable Row нейтральным хватом",
+            videoUrl: "https://www.youtube.com/results?search_query=Seated+Cable+Row+neutral+grip",
+            alternatives: [
+              { name: "Тяга двух гантелей лёжа грудью на наклонной скамье", note: "Свободный вес", video: "Видео Chest Supported Dumbbell Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Dumbbell+Row+incline" },
+              { name: "Seated row с опорой грудью", note: "Тренажёр", video: "Видео Chest Supported Machine Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Machine+Row" }
+            ]
+          }),
+          mkEx({
+            id: "B4_machineShoulderPress", name: "Жим вверх в тренажёре", target: "Дельтовидные + трицепс",
+            setsFull: "3 × 8–10", setsEarly: "2 подхода",
+            focus: "Выраженное плечо делает руку визуально плотнее",
+            tip: "Рёбра над тазом • плечи далеко от ушей",
+            steps: ["Спина опирается на спинку.", "Локти немного впереди линии плеч.", "Выжать рукояти вверх."],
+            avoid: ["подъём плеч к ушам", "прогиб в пояснице"],
+            video: "Видео Machine Shoulder Press",
+            videoUrl: "https://www.youtube.com/results?search_query=Machine+Shoulder+Press+technique",
+            alternatives: [
+              { name: "Жим гантелей сидя с опорой спины", note: "Свободный вес", video: "Видео Seated Dumbbell Shoulder Press", videoUrl: "https://www.youtube.com/results?search_query=Seated+Dumbbell+Shoulder+Press" },
+              { name: "Landmine press со штангой", note: "Штанга", video: "Видео Landmine Press", videoUrl: "https://www.youtube.com/results?search_query=Single+arm+Landmine+Press" }
+            ]
+          }),
+          mkEx({
+            id: "B5_hipAbductionMachine", name: "Разведение бёдер в тренажёре", target: "Средняя и верхнебоковая ягодичная", isIsolation: true,
+            setsFull: "3 × 15–20", setsEarly: "2 подхода",
+            focus: "Пауза в разведённом положении",
+            tip: "Развести → пауза → медленно вернуть",
+            steps: ["Таз стабилен.", "Развести колени.", "Задержаться на 1 секунду.", "Медленно вернуть."],
+            avoid: ["раскачивание тазом", "рывки"],
+            video: "Видео Hip Abduction Machine — StrengthLog",
+            videoUrl: "https://www.youtube.com/results?search_query=Hip+Abduction+Machine+StrengthLog",
+            alternatives: [
+              { name: "Отведение ноги в сторону в кроссовере", note: "Нижний блок", video: "Видео Cable Hip Abduction", videoUrl: "https://www.youtube.com/results?search_query=Cable+Hip+Abduction" },
+              { name: "Отведение ноги лёжа на боку с утяжелителем", note: "На коврике", video: "Видео Lying Side Hip Abduction", videoUrl: "https://www.youtube.com/results?search_query=Lying+Side+Hip+Abduction+ankle+weights" }
+            ]
+          }),
+          mkEx({
+            id: "B6_overheadRopeExtension", name: "Разгибание рук с канатом из-за головы", target: "Трицепс (длинная головка)", isIsolation: true,
+            setsFull: "3 × 10–15", setsEarly: "2 подхода",
+            focus: "Важное упражнение для задней поверхности руки",
+            tip: "Локти вверх • двигаются только предплечья",
+            steps: ["Встать спиной к блоку.", "Локти направлены вперёд и вверх.", "Согнуть локти, дать трицепсу растянуться.", "Разогнуть руки."],
+            avoid: ["прогиб поясницы", "движение локтями"],
+            video: "Видео Overhead Cable Triceps Extension",
+            videoUrl: "https://www.youtube.com/results?search_query=Overhead+Cable+Triceps+Extension",
+            alternatives: [
+              { name: "Разгибание гантели из-за головы двумя руками", note: "Свободный вес", video: "Видео Overhead Dumbbell Triceps Extension", videoUrl: "https://www.youtube.com/results?search_query=Seated+Overhead+Dumbbell+Triceps+Extension" },
+              { name: "Французский жим EZ-грифом лёжа", note: "Свободный вес", video: "Видео EZ Bar Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=EZ+Bar+Skullcrusher+technique" }
+            ]
+          }),
+          mkEx({
+            id: "B7_deadBug", name: "Dead Bug", target: "Глубокие мышцы живота", isIsolation: true,
+            setsFull: "2 × 8–10 на сторону", setsEarly: "2 × 8–10 на сторону",
+            focus: "Контроль положения таза и рёбер",
+            tip: "Двигаются руки и ноги — корпус остаётся",
+            steps: ["Лёжа на спине, руки вверх, колени 90°.", "Вытянуть противоположные руку и ногу.", "Поясница стабильна."],
+            avoid: ["прогиб поясницы", "потеря контроля"],
+            video: "Видео Dead Bug — Hinge Health",
+            videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+exercise+Hinge+Health",
+            alternatives: [
+              { name: "Heel taps — касания пяткой пола", note: "Легче", video: "Видео Alternating Heel Taps", videoUrl: "https://www.youtube.com/results?search_query=Alternating+Heel+Taps+core" },
+              { name: "Dead bug только ногами", note: "Легче", video: "Видео Dead Bug Legs Only", videoUrl: "https://www.youtube.com/results?search_query=Dead+Bug+legs+only" }
+            ]
+          }),
+        ],
+      },
+      C: {
+        label: "Тренировка C",
+        focus: "всё тело • ягодицы • плечи • руки • кор",
+        exercises: [
+          mkEx({
+            id: "C1_gobletBoxSquat", name: "Goblet squat до бокса", target: "Ноги + ягодицы",
+            setsFull: "3 × 8–10", setsEarly: "2 подхода",
+            focus: "Коснуться скамьи без расслабления",
+            tip: "Садись к боксу, но не падай на него",
+            steps: ["Гантель перед грудью.", "Таз назад и вниз к скамье.", "Коснуться скамьи без расслабления.", "Встать."],
+            avoid: ["расслабление на скамье", "колени внутрь"],
+            video: "Видео Goblet Squat — NASM",
+            videoUrl: "https://www.youtube.com/results?search_query=Goblet+Box+Squat+NASM",
+            alternatives: [
+              { name: "Жим ногами", note: "Тренажёр", video: "Видео Leg Press", videoUrl: "https://www.youtube.com/results?search_query=Leg+Press+technique" },
+              { name: "Присед в Смите до бокса", note: "Направляющие", video: "Видео Smith Machine Box Squat", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Box+Squat" }
+            ]
+          }),
+          mkEx({
+            id: "C2_gluteBackExtension", name: "Гиперэкстензия с ягодичным акцентом", target: "Ягодицы + задняя поверхность бедра",
+            setsFull: "3 × 10–12", setsEarly: "2 подхода",
+            focus: "Останавливаться на прямой линии тела",
+            tip: "До прямой линии — не дальше",
+            steps: ["Опуститься сгибанием в тазобедренных.", "Подняться сокращением ягодиц.", "Остановиться в прямой линии."],
+            avoid: ["переразгибание поясницы вверху"],
+            video: "Видео 45° Back Extension — MuscleWiki",
+            videoUrl: "https://www.youtube.com/results?search_query=Glute+Focused+45+Degree+Back+Extension",
+            alternatives: [
+              { name: "Cable pull-through", note: "Нижний блок", video: "Видео Cable Pull-through", videoUrl: "https://www.youtube.com/results?search_query=Cable+pull-through+technique" },
+              { name: "Румынская тяга в Смите", note: "Направляющие", video: "Видео Smith Machine RDL", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Romanian+Deadlift" }
+            ]
+          }),
+          mkEx({
+            id: "C3_oneArmDumbbellRow", name: "Тяга гантели одной рукой", target: "Широчайшие + середина спины",
+            setsFull: "3 × 10 на сторону", setsEarly: "2 подхода",
+            focus: "Корпус неподвижен, локоть к заднему карману",
+            tip: "Локоть к заднему карману",
+            steps: ["Одной рукой опереться на скамью.", "Вести локоть назад и к тазу.", "Опустить контролируемо."],
+            avoid: ["скручивание корпуса", "тяга плечом к уху"],
+            video: "Видео One-arm Dumbbell Row — Bodybuilding.com",
+            videoUrl: "https://www.youtube.com/results?search_query=One-arm+Dumbbell+Row+Bodybuilding",
+            alternatives: [
+              { name: "Односторонняя горизонтальная тяга блока", note: "Тренажёр", video: "Видео Single Arm Cable Row", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Seated+Cable+Row" },
+              { name: "Row с опорой грудью", note: "Тренажёр", video: "Видео Chest Supported Row", videoUrl: "https://www.youtube.com/results?search_query=Chest+Supported+Row" }
+            ]
+          }),
+          mkEx({
+            id: "C4_inclineDumbbellPress", name: "Жим гантелей на наклонной скамье", target: "Верх груди + передняя дельта + трицепс",
+            setsFull: "3 × 8–12", setsEarly: "2 подхода",
+            focus: "Угол скамьи 30–45°, лопатки стабильны",
+            tip: "Лопатки стабильны • локти под контролем",
+            steps: ["Угол скамьи 30–45°.", "Локти под углом 45° к корпусу.", "Выжать вверх без столкновения гантелей."],
+            avoid: ["столкновение гантелей", "отрыв таза"],
+            video: "Видео Incline Dumbbell Press — MuscleWiki",
+            videoUrl: "https://www.youtube.com/results?search_query=Incline+Dumbbell+Press+MuscleWiki",
+            alternatives: [
+              { name: "Наклонный chest press", note: "Тренажёр", video: "Видео Incline Machine Press", videoUrl: "https://www.youtube.com/results?search_query=Incline+Machine+Chest+Press" },
+              { name: "Жим в Смите на наклонной скамье", note: "Направляющие", video: "Видео Smith Machine Incline Press", videoUrl: "https://www.youtube.com/results?search_query=Smith+Machine+Incline+Press" }
+            ]
+          }),
+          mkEx({
+            id: "C5_cableGluteKickback", name: "Отведение ноги назад в кроссовере", target: "Большая ягодичная", isIsolation: true,
+            setsFull: "3 × 12–15 на ногу", setsEarly: "2 подхода",
+            focus: "Нога назад ягодицей, а не поясницей",
+            tip: "Нога назад ягодицей, а не поясницей",
+            steps: ["Закрепить манжету на голени.", "Отвести ногу назад из тазобедренного сустава.", "Медленно вернуть."],
+            avoid: ["прогиб поясницы"],
+            video: "Видео Cable Glute Kickback — SET FOR SET",
+            videoUrl: "https://www.youtube.com/results?search_query=Cable+Glute+Kickback+SET+FOR+SET",
+            alternatives: [
+              { name: "Glute kickback machine", note: "Тренажёр", video: "Видео Glute Kickback Machine", videoUrl: "https://www.youtube.com/results?search_query=Glute+Kickback+Machine" },
+              { name: "Одноногий hip thrust с гантелью", note: "Свободный вес", video: "Видео Single Leg Hip Thrust", videoUrl: "https://www.youtube.com/results?search_query=Single+Leg+Dumbbell+Hip+Thrust" }
+            ]
+          }),
+          mkEx({
+            id: "C6_dumbbellLateralRaise", name: "Разведение гантелей в стороны", target: "Средняя дельта", isIsolation: true,
+            setsFull: "3 × 12–15", setsEarly: "2 подхода",
+            focus: "Выраженное плечо делает руку собраннее",
+            tip: "Локти ведут • кисти не выше локтей",
+            steps: ["Локти ведут движение.", "Поднять руки до уровня плеч.", "Опустить медленно."],
+            avoid: ["рывок трапециями", "кисти выше локтей"],
+            video: "Видео Lateral Raise — Jeff Nippard",
+            videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Lateral+Raise+Jeff+Nippard",
+            alternatives: [
+              { name: "Lateral raise machine", note: "Тренажёр", video: "Видео Machine Lateral Raise", videoUrl: "https://www.youtube.com/results?search_query=Machine+Lateral+Raise" },
+              { name: "Разведение руки на нижнем блоке", note: "Нижний блок", video: "Видео Cable Lateral Raise", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Cable+Lateral+Raise" }
+            ]
+          }),
+          mkEx({
+            id: "C7_farmerCarry", name: "Фермерская прогулка", target: "Хват + плечевой пояс + кор", isIsolation: true,
+            setsFull: "3 × 30–40 м", setsEarly: "2 прохода",
+            focus: "Общая силовая выносливость",
+            tip: "Высокая осанка • тяжёлые руки • тихий корпус",
+            steps: ["Взять две одинаковые гантели.", "Идти обычными шагами без раскачивания."],
+            avoid: ["раскачивание корпуса", "подъём плеч к ушам"],
+            video: "Видео Dumbbell Farmer Carry",
+            videoUrl: "https://www.youtube.com/results?search_query=Dumbbell+Farmer+Carry+technique",
+            alternatives: [
+              { name: "Suitcase carry — одна гантель", note: "Односторонняя нагрузка", video: "Видео Suitcase Carry", videoUrl: "https://www.youtube.com/results?search_query=Suitcase+Carry+exercise" },
+              { name: "Cable march — марш на месте с блоком", note: "Блок", video: "Видео Cable March", videoUrl: "https://www.youtube.com/results?search_query=Cable+March+core+exercise" }
+            ]
+          }),
+          mkEx({
+            id: "C8_plank", name: "Планка", target: "Передняя стабилизация корпуса", isIsolation: true,
+            setsFull: "2 × 20–30 сек", setsEarly: "2 × 20–30 сек",
+            focus: "Не дольше — качественнее",
+            tip: "Не дольше — качественнее",
+            steps: ["Локти под плечами.", "Таз ровно.", "Рёбра собраны."],
+            avoid: ["провисание таза", "поднятый таз"],
+            video: "Видео Plank — Hinge Health",
+            videoUrl: "https://www.youtube.com/results?search_query=Plank+exercise+Hinge+Health",
+            alternatives: [
+              { name: "Высокая планка на ладонях", note: "Прямые руки", video: "Видео High Plank", videoUrl: "https://www.youtube.com/results?search_query=High+Plank+exercise" },
+              { name: "Планка с колен", note: "Легче", video: "Видео Kneeling Plank", videoUrl: "https://www.youtube.com/results?search_query=Kneeling+Plank+exercise" }
+            ]
+          }),
+          mkEx({
+            id: "C9_singleArmCableTriceps", name: "Одностороннее разгибание руки на верхнем блоке", target: "Трицепс", isIsolation: true, weekStart: 5,
+            setsFull: "2 × 12–15 на руку", setsEarly: "2 × 12–15 на руку",
+            focus: "Дополнительная проработка трицепса с 5 недели",
+            tip: "Плечо стоит — предплечье движется",
+            steps: ["Локоть возле корпуса.", "Полностью разогнуть локоть.", "Вернуть медленно."],
+            avoid: ["движение плечом", "рывки"],
+            video: "Видео Single-arm Cable Triceps Extension",
+            videoUrl: "https://www.youtube.com/results?search_query=Single-arm+Cable+Triceps+Extension",
+            alternatives: [
+              { name: "Разгибание гантели из-за головы одной рукой", note: "Свободный вес", video: "Видео Single Arm Overhead Extension", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Overhead+Dumbbell+Triceps+Extension" },
+              { name: "Французское разгибание одной гантели лёжа", note: "Свободный вес", video: "Видео Single Arm Skullcrusher", videoUrl: "https://www.youtube.com/results?search_query=Single+Arm+Dumbbell+Skullcrusher" }
+            ]
+          }),
+        ],
+      },
+    };
 
-  return (
-    <div className="r50-root">
-      <div className="topbar">
-        <button className="tapzone" onClick={exitSafely} aria-label="Выйти и сохранить"><X size={22} /></button>
-        <div style={{ flex: 1 }}>
-          <div className="muted" style={{ fontSize: "calc(13px * var(--fs-scale))" }}>Тренировка {letter} · упражнение {exIndex + 1} из {exList.length}</div>
-          <div className="progressbar" style={{ marginTop: 6 }}><div style={{ width: `${((exIndex) / exList.length) * 100}%` }} /></div>
+    const PRESETS = {
+      vacation: {
+        label: "Отпуск",
+        schedule: [
+          { day: "Вторник", activity: "Тренажёрный зал", time: "10:00" },
+          { day: "Четверг", activity: "Тренажёрный зал", time: "10:00" },
+          { day: "Суббота", activity: "Тренажёрный зал", time: "10:00" },
+          { day: "Понедельник", activity: "Йога", time: "утро" },
+          { day: "Среда", activity: "Йога", time: "день" },
+          { day: "Суббота", activity: "Бассейн", time: "выходные" },
+          { day: "Воскресенье", activity: "Полное восстановление", time: "весь день" },
+        ],
+      },
+      office: {
+        label: "Офис",
+        schedule: [
+          { day: "Понедельник", activity: "Зал", time: "после 20:00" },
+          { day: "Среда", activity: "Зал", time: "после 20:00" },
+          { day: "Пятница", activity: "Зал", time: "после 20:00" },
+          { day: "Понедельник", activity: "Йога", time: "раннее утро" },
+          { day: "Среда", activity: "Йога", time: "вечер" },
+          { day: "Суббота", activity: "Бассейн", time: "выходные" },
+        ],
+      },
+    };
+
+    const RIR_OPTIONS = [
+      { value: 4, label: "Легко", sub: "осталось 4+", hint: "Вес пока лёгкий" },
+      { value: 3, label: "Уверенно", sub: "осталось 3", hint: "Ещё три повтора точно получились бы" },
+      { value: 2, label: "Рабочая нагрузка", sub: "осталось 2", hint: "Ещё два повтора возможны, но тяжело" },
+      { value: 1, label: "Почти предел", sub: "остался 1", hint: "Только один чистый повтор" },
+      { value: 0, label: "Отказ", sub: "0", hint: "Следующий повтор уже не выполнить" },
+    ];
+
+    const FEEL_OPTIONS = ["Легко", "Нормально", "Тяжело"];
+    const CYCLE = ["A", "B", "C"];
+
+    function getPhase(week) {
+      if (week <= 2) return { key: "early", label: "Недели 1–2 · базовый объём", rirTarget: "осталось 3", deloadFactor: 1 };
+      if (week <= 4) return { key: "full", label: "Недели 3–4 · полный объём", rirTarget: "осталось 2", deloadFactor: 1 };
+      if (week <= 8) return { key: "full_c9", label: "Недели 5–8 · полный объём + доп. трицепс", rirTarget: "осталось 2", deloadFactor: 1 };
+      if (week <= 11) return { key: "progress", label: "Недели 9–11 · прогрессия веса", rirTarget: "1–2", deloadFactor: 1 };
+      if (week === 12) return { key: "deload", label: "Неделя 12 · разгрузка", rirTarget: "легко / умеренно", deloadFactor: 0.6 };
+      return { key: "optional", label: "Недели 13–16 · опционально", rirTarget: "осталось 2", deloadFactor: 1 };
+    }
+
+    function setsForExercise(ex, week) {
+      const phase = getPhase(week);
+      let base = week <= 2 ? ex.setsEarly : ex.setsFull;
+      if (phase.key === "deload") {
+        const m = base.match(/(\d+)/);
+        if (m) {
+          const n = Math.max(1, Math.round(parseInt(m[1], 10) * phase.deloadFactor));
+          base = base.replace(/^\d+/, String(n));
+        }
+      }
+      return base;
+    }
+
+    function exercisesForLetter(letter, week) {
+      return PROGRAM[letter].exercises.filter((ex) => week >= ex.weekStart);
+    }
+
+    const STORAGE_KEY = "recomposition50_state_v2";
+
+    function defaultState() {
+      return {
+        onboarded: false, onboardStep: 0,
+        profile: { name: "Елена", age: 50, height: 164, weight: 70.1, bmi: 26.8, bodyFat: 33.5, leanMass: 48 },
+        goals: { durationWeeks: 12, targetWeightMin: 67, targetWeightMax: 68, waistMin: 4, waistMax: 7, secondStageWeight: 64 },
+        preset: "vacation", schedule: PRESETS.vacation.schedule,
+        nutritionGoals: { calories: 1650, protein: 110, fat: 55, carbs: 140, meals: 3, exclusions: "", window: "" },
+        programStartDate: new Date().toISOString().slice(0, 10),
+        cycleCount: 0, startingRecordDone: false, workingWeights: initialWorkingWeights,
+        workoutHistory: [], measurements: [], photos: [], nutritionLog: {}, customFoods: [],
+        activeSession: null, settings: { textSize: "large" }, demoDataAdded: false,
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaultState();
+        return { ...defaultState(), ...JSON.parse(raw) };
+      } catch (e) {
+        return defaultState();
+      }
+    }
+
+    function saveState(state) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function uid() { return Math.random().toString(36).slice(2, 10); }
+    function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+    function weekNumberFor(state) {
+      const start = new Date(state.programStartDate);
+      const now = new Date();
+      const diffDays = Math.max(0, Math.floor((now - start) / 86400000));
+      return Math.min(16, Math.floor(diffDays / 7) + 1);
+    }
+
+    function nextLetter(state) { return CYCLE[state.cycleCount % 3]; }
+
+    /* ======================================================================
+       ВСПУХАЮЩИЕ КАРТОЧКИ И ОНБОРДИНГ С РЕДАКТИРОВАНИЕМ РАСПИСАНИЯ
+    ====================================================================== */
+
+    function Stepper({ value, onChange, step = 1, min = 0, max = 999, suffix = "" }) {
+      return (
+        <div className="stepper">
+          <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} aria-label="Минус"><Icon name="minus" size={20} /></button>
+          <div className="val">{value}{suffix}</div>
+          <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} aria-label="Плюс"><Icon name="plus" size={20} /></button>
         </div>
-      </div>
+      );
+    }
 
-      <div className="r50-scroll" style={{ paddingTop: 4 }}>
-        <div className="card-dark">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "calc(26px * var(--fs-scale))", lineHeight: 1.15 }}>{displayVariant.toUpperCase()}</div>
-              <div className="muted">{ex.target}</div>
+    function Onboarding({ state, setState }) {
+      const step = state.onboardStep;
+      const goNext = () => setState((s) => ({ ...s, onboardStep: Math.min(3, s.onboardStep + 1) }));
+      const goBack = () => setState((s) => ({ ...s, onboardStep: Math.max(0, s.onboardStep - 1) }));
+      const finish = () => setState((s) => ({ ...s, onboarded: true }));
+
+      const p = state.profile, g = state.goals, n = state.nutritionGoals;
+
+      const addScheduleItem = () => {
+        setState((s) => ({ ...s, schedule: [...s.schedule, { day: "Новый день", activity: "Активность", time: "10:00" }] }));
+      };
+
+      const updateScheduleItem = (idx, field, value) => {
+        setState((s) => {
+          const newSchedule = [...s.schedule];
+          newSchedule[idx] = { ...newSchedule[idx], [field]: value };
+          return { ...s, schedule: newSchedule };
+        });
+      };
+
+      const removeScheduleItem = (idx) => {
+        setState((s) => ({ ...s, schedule: s.schedule.filter((_, i) => i !== idx) }));
+      };
+
+      return (
+        <div className="r50-root">
+          <div className="r50-scroll">
+            <div style={{ display: "flex", gap: 6, marginTop: 8, marginBottom: 18 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} style={{ flex: 1, height: 4, borderRadius: 4, background: i <= step ? "var(--sage)" : "rgba(243,238,229,0.14)" }} />
+              ))}
+            </div>
+            <div className="eyebrow">Рекомпозиция 50 · шаг {step + 1} из 4</div>
+
+            {step === 0 && (
+              <>
+                <div className="h1">Стартовая точка</div>
+                <p className="muted">Проверьте данные — их всегда можно изменить.</p>
+                <div className="card-dark">
+                  <label className="label-field">Имя</label>
+                  <input className="input-field" value={p.name} onChange={(e) => setState((s) => ({ ...s, profile: { ...s.profile, name: e.target.value } }))} />
+                  <div className="divider" />
+                  {[
+                    ["Возраст, лет", "age"], ["Рост, см", "height"], ["Вес, кг", "weight"],
+                    ["ИМТ", "bmi"], ["Жир, % (биоимпеданс)", "bodyFat"], ["Безжировая масса, кг", "leanMass"],
+                  ].map(([label, key]) => (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <label className="label-field">{label}</label>
+                      <input type="number" className="input-field" value={p[key]}
+                        onChange={(e) => setState((s) => ({ ...s, profile: { ...s.profile, [key]: parseFloat(e.target.value) || 0 } }))} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {step === 1 && (
+              <>
+                <div className="h1">Цель этапа</div>
+                <div className="card-dark">
+                  <div className="muted" style={{ marginBottom: 10 }}>Длительность: {g.durationWeeks} недель</div>
+                  <div className="muted" style={{ marginBottom: 10 }}>Целевой вес: {g.targetWeightMin}–{g.targetWeightMax} кг</div>
+                  <div className="muted" style={{ marginBottom: 10 }}>Талия: минус {g.waistMin}–{g.waistMax} см</div>
+                  <div className="muted">Более плотные ягодицы и собранная линия рук</div>
+                  <div className="divider" />
+                  <div className="pill pill-brass">Возможный 2 этап: {g.secondStageWeight} кг</div>
+                </div>
+              </>
+            )}
+
+            {step === 2 && (
+              <>
+                <div className="h1">Режим недели</div>
+                <p className="muted">Выберите пресет или отредактируйте дни вручную.</p>
+                <div className="choice-row" style={{ marginBottom: 16 }}>
+                  {Object.entries(PRESETS).map(([key, preset]) => (
+                    <button key={key} className={`choice-btn-dark ${state.preset === key ? "selected" : ""}`}
+                      onClick={() => setState((s) => ({ ...s, preset: key, schedule: preset.schedule }))}>
+                      <div className="lbl">{preset.label}</div>
+                      <div className="sub">{preset.schedule.length} активностей в неделе</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="card-dark">
+                  <div className="muted" style={{ marginBottom: 12 }}>Ваше расписание:</div>
+                  {state.schedule.map((row, i) => (
+                    <div key={i} style={{ padding: "10px 0", borderBottom: i < state.schedule.length - 1 ? "1px solid var(--milk-soft)" : "none" }}>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <input className="input-field" style={{ flex: 1, minHeight: 40, padding: "6px 10px" }} value={row.day} onChange={e => updateScheduleItem(i, 'day', e.target.value)} />
+                        <input className="input-field" style={{ width: 110, minHeight: 40, padding: "6px 10px" }} value={row.time} onChange={e => updateScheduleItem(i, 'time', e.target.value)} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input className="input-field" style={{ flex: 1, minHeight: 40, padding: "6px 10px" }} value={row.activity} onChange={e => updateScheduleItem(i, 'activity', e.target.value)} />
+                        <button className="tapzone" style={{ color: "var(--error)", minWidth: 40 }} onClick={() => removeScheduleItem(i)} aria-label="Удалить">
+                          <Icon name="trash" size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button className="btn btn-ghost btn-sm" style={{ width: "100%", marginTop: 14 }} onClick={addScheduleItem}>
+                    <Icon name="plus" size={16} /> Добавить активность
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <div className="h1">Питание</div>
+                <div className="card-dark">
+                  {[
+                    ["Дневная калорийность, ккал", "calories"], ["Цель по белку, г", "protein"],
+                    ["Цель по жирам, г", "fat"], ["Цель по углеводам, г", "carbs"]
+                  ].map(([label, key]) => (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <label className="label-field">{label}</label>
+                      <input type="number" className="input-field" value={n[key]}
+                        onChange={(e) => setState((s) => ({ ...s, nutritionGoals: { ...s.nutritionGoals, [key]: parseFloat(e.target.value) || 0 } }))} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              {step > 0 && <button className="btn btn-ghost" style={{ flex: 1 }} onClick={goBack}>Назад</button>}
+              {step < 3
+                ? <button className="btn btn-primary-dark" style={{ flex: 2 }} onClick={goNext}>Далее</button>
+                : <button className="btn btn-primary-dark" style={{ flex: 2 }} onClick={finish}>Начать программу</button>}
             </div>
           </div>
-          <div className="divider" />
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span className="muted">Сегодня</span>
-            <span style={{ fontWeight: 700 }}>
-              {baseTargetSets}{exLog.extraSets ? `+${exLog.extraSets}` : ''} × {setsMatch ? setsMatch[2] : "8–12"}
-              {state.workingWeights[exLog.variantId] && state.workingWeights[exLog.variantId].value != null ? ` · ${state.workingWeights[exLog.variantId].value} кг` : ""}
-            </span>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <span className="muted">Фокус · </span><span>{ex.focus}</span>
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowTech(true)}><Info size={16} /> Техника</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowReplace(true)}><RefreshCw size={16} /> Заменить</button>
-          </div>
         </div>
+      );
+    }
 
-        <div className="muted" style={{ fontSize: "calc(14px * var(--fs-scale))" }}>
-          {lastResult ? `Прошлый подход: ${lastResult.weight} кг × ${lastResult.reps}` : "Первое выполнение: подберите комфортный вес."}
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          {exLog.sets.map((st, i) => (
-            <div className="setrow-done" key={i}>
-              <span><Check size={16} style={{ verticalAlign: "-2px" }} /> Подход {i + 1} · {st.weight} кг × {st.reps}</span>
-              <span className="muted" style={{ color: "var(--milk)" }}>осталось {st.rir}</span>
-            </div>
+    function BottomNav({ screen, setScreen }) {
+      const items = [
+        ["today", "Сегодня", "home"], ["workouts", "Тренировки", "dumbbell"],
+        ["nutrition", "Питание", "apple"], ["progress", "Прогресс", "linechart"], ["more", "Ещё", "more"],
+      ];
+      return (
+        <div className="bottomnav">
+          {items.map(([key, label, iconName]) => (
+            <button key={key} className={`navitem ${screen === key ? "active" : ""}`} onClick={() => setScreen(key)}>
+              <Icon name={iconName} size={22} />
+              <span>{label}</span>
+            </button>
           ))}
         </div>
+      );
+    }
 
-        {!isExerciseDone && !resting && (
+    function TodayScreen({ state, setState, startWorkout }) {
+      const week = weekNumberFor(state);
+      const phase = getPhase(week);
+      const letter = nextLetter(state);
+      const todayLog = state.nutritionLog[todayISO()] || { protein: 0, calories: 0 };
+      const proteinPct = Math.min(100, Math.round((todayLog.protein / (state.nutritionGoals.protein || 1)) * 100));
+      const weekDoneCount = state.workoutHistory.filter((h) => h.week === week).length;
+
+      return (
+        <div className="r50-scroll">
+          <div className="eyebrow">Неделя {week} · {phase.label}</div>
+          <div className="h1">{state.profile.name}, работаем на результат</div>
+
+          <div className="card-dark">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span className="muted">Выполнено за неделю</span>
+              <span className="pill">{weekDoneCount} / 3 трен.</span>
+            </div>
+            <div className="progressbar"><div style={{ width: `${Math.min(100, (weekDoneCount / 3) * 100)}%` }} /></div>
+          </div>
+
           <div className="card-light">
-            <div className="eyebrow" style={{ color: "rgba(31,32,30,0.5)" }}>ПОДХОД {doneCount + 1} ИЗ {targetSets}</div>
-            <div style={{ marginTop: 14 }}>
-              <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Вес, кг</label>
-              <Stepper value={weight} onChange={setWeight} step={ex.isIsolation ? 1 : 2.5} min={0} max={200} />
+            <div className="eyebrow" style={{ color: "rgba(31,32,30,0.55)" }}>Ближайшая тренировка</div>
+            <div style={{ fontSize: "calc(24px * var(--fs-scale))", fontWeight: 700, margin: "4px 0 2px" }}>{PROGRAM[letter].label}</div>
+            <div className="muted-dark" style={{ marginBottom: 14 }}>{PROGRAM[letter].focus}</div>
+            <button className="btn btn-primary-light" style={{ width: "100%" }} onClick={() => startWorkout(letter)}>
+              <Icon name="play" size={18} /> Начать тренировку
+            </button>
+          </div>
+
+          <div className="card-dark">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span>Белок сегодня</span>
+              <span className="muted">{todayLog.protein || 0} / {state.nutritionGoals.protein} г</span>
             </div>
-            <div style={{ marginTop: 18 }}>
-              <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Повторы</label>
-              <Stepper value={reps} onChange={setReps} step={1} min={0} max={40} />
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Как было?</label>
-              <div className="chip-row">
-                {FEEL_OPTIONS.map((f) => (
-                  <button key={f} className={`chip ${feel === f ? "active" : ""}`} style={{ color: feel === f ? "var(--deep)" : "var(--deep)", background: feel === f ? "var(--sage)" : "rgba(31,32,30,0.06)", borderColor: "rgba(31,32,30,0.14)" }}
-                    onClick={() => setFeel(f)}>{f}</button>
+            <div className="progressbar"><div style={{ width: `${proteinPct}%` }} /></div>
+          </div>
+        </div>
+      );
+    }
+
+    function WorkoutsScreen({ state, setState, startWorkout }) {
+      const [tab, setTab] = useState("program");
+      const week = weekNumberFor(state);
+      const [progLetter, setProgLetter] = useState("A");
+      const [openExercise, setOpenExercise] = useState(null);
+
+      return (
+        <div className="r50-scroll">
+          <div className="h1">Тренировки</div>
+          <div className="tabs">
+            {[["program", "Программа"], ["calendar", "Расписание"], ["history", "История"]].map(([k, l]) => (
+              <button key={k} className={`tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{l}</button>
+            ))}
+          </div>
+
+          {tab === "program" && (
+            <div>
+              <div className="chip-row" style={{ marginBottom: 14 }}>
+                {["A", "B", "C"].map((l) => (
+                  <button key={l} className={`chip ${progLetter === l ? "active" : ""}`} onClick={() => setProgLetter(l)}>Тренировка {l}</button>
                 ))}
               </div>
+              <div className="card-dark"><div className="muted">{PROGRAM[progLetter].focus}</div></div>
+              {exercisesForLetter(progLetter, week).map((ex, i) => (
+                <div key={ex.id} className="card-dark" onClick={() => setOpenExercise(ex)} style={{ cursor: "pointer" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{i + 1}. {ex.name}</div>
+                      <div className="muted">{ex.target}</div>
+                    </div>
+                    <div className="pill">{setsForExercise(ex, week)}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ marginTop: 18 }}>
-              <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Сколько чистых повторов ещё смогли бы сделать?</label>
-              <div className="choice-row">
-                {RIR_OPTIONS.map((o) => (
-                  <button key={o.value} className={`choice-btn-dark ${rir === o.value ? "selected" : ""}`} onClick={() => setRir(o.value)}>
-                    <div className="lbl">{rir === o.value && <Check size={16} />} {o.label} · {o.sub}</div>
-                    <div className="sub">{o.hint}</div>
+          )}
+
+          {tab === "calendar" && (
+            <div className="card-dark">
+              <div className="h2">Расписание недели</div>
+              {state.schedule.map((row, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+                  <span>{row.day} · {row.activity}</span><span className="muted">{row.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === "history" && (
+            <div>
+              {state.workoutHistory.length === 0 && <div className="card-dark muted">История пока пуста</div>}
+              {[...state.workoutHistory].reverse().map((h) => (
+                <div key={h.id} className="card-dark">
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontWeight: 700 }}>Тренировка {h.letter}</div>
+                    <div className="muted">{h.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {openExercise && <ExerciseInfoSheet ex={openExercise} activeVariantId={openExercise.id} onClose={() => setOpenExercise(null)} />}
+        </div>
+      );
+    }
+
+    /* SHEET ТЕХНИКИ С ИНДИВИДУАЛЬНОЙ ССЫЛКОЙ НА YOUTUBE ДЛЯ КАЖДОЙ ЗАМЕНЫ */
+    function ExerciseInfoSheet({ ex, activeVariantId, onClose }) {
+      let title = ex.name;
+      let videoLabel = ex.video;
+      let videoLink = ex.videoUrl;
+
+      if (activeVariantId && activeVariantId !== ex.id) {
+        const alt = ex.alternatives?.find((a) => a.name === activeVariantId);
+        if (alt) {
+          title = alt.name;
+          videoLabel = alt.video || `Видео ${alt.name}`;
+          videoLink = alt.videoUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(alt.name + " technique")}`;
+        }
+      }
+
+      return (
+        <div className="sheet-backdrop" onClick={onClose}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div className="h2" style={{ marginBottom: 0 }}>{title}</div>
+              <button className="tapzone" onClick={onClose} aria-label="Закрыть"><Icon name="x" size={22} /></button>
+            </div>
+            <div className="pill" style={{ marginBottom: 14 }}>{ex.target}</div>
+            
+            <div className="muted" style={{ marginBottom: 8, fontWeight: 700, color: "var(--milk)" }}>Как делать</div>
+            <ol style={{ paddingLeft: 20, marginBottom: 14 }}>
+              {ex.steps.map((s, i) => <li key={i} style={{ marginBottom: 6 }}>{s}</li>)}
+            </ol>
+            
+            {ex.avoid && ex.avoid.length > 0 && (
+              <>
+                <div className="muted" style={{ marginBottom: 6, fontWeight: 700, color: "var(--milk)" }}>Ошибки</div>
+                {ex.avoid.map((a, i) => <div key={i} className="avoid-line">✕ {a}</div>)}
+              </>
+            )}
+
+            {videoLink && (
+              <a href={videoLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <div className="card-stone" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <Icon name="play" size={18} color="var(--deep)" />
+                  <span style={{ color: "var(--deep)", fontWeight: 700 }}>{videoLabel}</span>
+                </div>
+              </a>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ЭКРАН ТРЕНИРОВКИ С РУЧНЫМ ДОБАВЛЕНИЕМ ДОПОЛНИТЕЛЬНЫХ СЕТОВ И ПОЛНОЦЕННЫМИ ЗАМЕНАМИ */
+    function WorkoutSession({ state, setState, onExit }) {
+      const session = state.activeSession;
+      const week = session.week;
+      const letter = session.letter;
+      const exList = exercisesForLetter(letter, week);
+      const exIndex = session.exerciseIndex;
+      const ex = exList[exIndex];
+      const exLog = session.log[ex.id] || { variantId: ex.id, sets: [], extraSets: 0 };
+      
+      const setsMatch = setsForExercise(ex, week).match(/(\d+)(?:\s*[×x]\s*(\d+)(?:–|-)?(\d+)?)?/);
+      const baseTargetSets = setsMatch ? parseInt(setsMatch[1], 10) : 3;
+      const targetSets = baseTargetSets + (exLog.extraSets || 0);
+      const repMin = setsMatch && setsMatch[2] ? parseInt(setsMatch[2], 10) : 8;
+
+      const [showTech, setShowTech] = useState(false);
+      const [showReplace, setShowReplace] = useState(false);
+      const [weight, setWeight] = useState(() => {
+        const ww = state.workingWeights[exLog.variantId] || state.workingWeights[ex.id];
+        return ww && ww.value != null ? ww.value : ww && ww.valueMin != null ? ww.valueMin : 0;
+      });
+      const [reps, setReps] = useState(repMin);
+      const [feel, setFeel] = useState(null);
+      const [rir, setRir] = useState(null);
+      const [resting, setResting] = useState(false);
+      const [restLeft, setRestLeft] = useState(0);
+
+      const updateSession = (patch) => {
+        setState((s) => ({ ...s, activeSession: { ...s.activeSession, ...patch } }));
+      };
+
+      const completeSet = () => {
+        const newSet = { weight, reps, feel: feel || "Нормально", rir: rir == null ? 2 : rir, done: true };
+        const newLog = { ...exLog, sets: [...exLog.sets, newSet] };
+        updateSession({ log: { ...session.log, [ex.id]: newLog } });
+        setFeel(null); setRir(null);
+        setRestLeft(ex.isIsolation ? 60 : 90);
+        setResting(true);
+      };
+
+      const addExtraSet = () => {
+        const newLog = { ...exLog, extraSets: (exLog.extraSets || 0) + 1 };
+        updateSession({ log: { ...session.log, [ex.id]: newLog } });
+      };
+
+      const applyReplacement = (alt) => {
+        updateSession({ log: { ...session.log, [ex.id]: { variantId: alt.name, sets: [], extraSets: 0 } } });
+        setShowReplace(false);
+      };
+
+      const doneCount = exLog.sets.length;
+      const isExerciseDone = doneCount >= targetSets;
+      const displayVariant = exLog.variantId !== ex.id ? exLog.variantId : ex.name;
+
+      const goNextExercise = () => {
+        if (exIndex + 1 < exList.length) {
+          updateSession({ exerciseIndex: exIndex + 1 });
+        } else {
+          finishWorkout();
+        }
+      };
+
+      const finishWorkout = () => {
+        const record = { id: uid(), letter, date: todayISO(), week, exercises: session.log };
+        setState((s) => ({
+          ...s, workoutHistory: [...s.workoutHistory, record],
+          cycleCount: s.cycleCount + 1, activeSession: null
+        }));
+      };
+
+      return (
+        <div className="r50-root">
+          <div className="topbar">
+            <button className="tapzone" onClick={onExit} aria-label="Закрыть"><Icon name="x" size={22} /></button>
+            <div style={{ flex: 1 }}>
+              <div className="muted" style={{ fontSize: "calc(13px * var(--fs-scale))" }}>Упражнение {exIndex + 1} из {exList.length}</div>
+              <div className="progressbar" style={{ marginTop: 4 }}><div style={{ width: `${((exIndex) / exList.length) * 100}%` }} /></div>
+            </div>
+          </div>
+
+          <div className="r50-scroll" style={{ paddingTop: 4 }}>
+            <div className="card-dark">
+              <div style={{ fontWeight: 700, fontSize: "calc(22px * var(--fs-scale))" }}>{displayVariant.toUpperCase()}</div>
+              <div className="muted">{ex.target}</div>
+              <div className="divider" />
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Цель:</span>
+                <strong>{baseTargetSets}{exLog.extraSets ? `+${exLog.extraSets}` : ''} × {setsMatch ? setsMatch[2] : "8–12"}</strong>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowTech(true)}><Icon name="info" size={16} /> Техника</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowReplace(true)}><Icon name="refresh" size={16} /> Заменить</button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              {exLog.sets.map((st, i) => (
+                <div className="setrow-done" key={i}>
+                  <span><Icon name="check" size={16} /> Подход {i + 1} · {st.weight} кг × {st.reps}</span>
+                  <span className="muted" style={{ color: "var(--milk)" }}>осталось {st.rir}</span>
+                </div>
+              ))}
+            </div>
+
+            {!isExerciseDone && !resting && (
+              <div className="card-light">
+                <div className="eyebrow" style={{ color: "rgba(31,32,30,0.5)" }}>ПОДХОД {doneCount + 1} ИЗ {targetSets}</div>
+                <div style={{ marginTop: 12 }}>
+                  <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Вес, кг</label>
+                  <Stepper value={weight} onChange={setWeight} step={ex.isIsolation ? 1 : 2.5} min={0} />
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Повторы</label>
+                  <Stepper value={reps} onChange={setReps} step={1} min={1} />
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <label className="label-field" style={{ color: "rgba(31,32,30,0.6)" }}>Повторов в запасе?</label>
+                  <div className="choice-row">
+                    {RIR_OPTIONS.map((o) => (
+                      <button key={o.value} className={`choice-btn-dark ${rir === o.value ? "selected" : ""}`} onClick={() => setRir(o.value)}>
+                        <div className="lbl">{rir === o.value && <Icon name="check" size={16} />} {o.label} · {o.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button className="btn btn-primary-light" style={{ width: "100%", marginTop: 18 }} onClick={completeSet}>
+                  Завершить подход
+                </button>
+              </div>
+            )}
+
+            {resting && (
+              <div className="card-dark" style={{ textAlign: "center" }}>
+                <div className="muted">Отдых</div>
+                <div className="bignum goldnum" style={{ fontSize: "calc(44px * var(--fs-scale))", margin: "8px 0" }}>{restLeft} сек</div>
+                <button className="btn btn-primary-dark btn-sm" style={{ margin: "0 auto" }} onClick={() => setResting(false)}>Пропустить</button>
+              </div>
+            )}
+
+            {isExerciseDone && !resting && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+                <button className="btn btn-ghost" onClick={addExtraSet}>
+                  <Icon name="plus" size={18} /> Дополнительный подход
+                </button>
+                <button className="btn btn-primary-dark" style={{ width: "100%" }} onClick={goNextExercise}>
+                  {exIndex + 1 < exList.length ? <>Следующее упражнение <Icon name="arrowRight" size={18} /></> : "Завершить тренировку"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {showTech && <ExerciseInfoSheet ex={ex} activeVariantId={exLog.variantId} onClose={() => setShowTech(false)} />}
+
+          {showReplace && (
+            <div className="sheet-backdrop" onClick={() => setShowReplace(false)}>
+              <div className="sheet" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div className="h2" style={{ marginBottom: 0 }}>Заменить упражнение</div>
+                  <button className="tapzone" onClick={() => setShowReplace(false)}><Icon name="x" size={22} /></button>
+                </div>
+                {ex.alternatives.map((alt, i) => (
+                  <button key={i} className="choice-btn-dark" style={{ width: "100%", marginBottom: 10 }} onClick={() => applyReplacement(alt)}>
+                    <div className="lbl">{alt.name}</div>
+                    {alt.note && <div className="sub">{alt.note}</div>}
                   </button>
                 ))}
+                <button className="choice-btn-dark" style={{ width: "100%", opacity: 0.7 }} onClick={() => applyReplacement({ name: ex.name })}>
+                  <div className="lbl"><Icon name="refresh" size={16}/> Вернуть оригинал</div>
+                </button>
               </div>
             </div>
-            <button className="btn btn-primary-light" style={{ width: "100%", marginTop: 20 }} onClick={completeSet}>
-              Завершить подход
-            </button>
-          </div>
-        )}
-
-        {resting && (
-          <div className="card-dark" style={{ textAlign: "center" }}>
-            <div className="muted">Отдых</div>
-            <div className="bignum goldnum" style={{ fontSize: "calc(48px * var(--fs-scale))", margin: "10px 0" }}>
-              {Math.floor(restLeft / 60)}:{String(restLeft % 60).padStart(2, "0")}
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setRestLeft((t) => t + 30)}>+30 сек</button>
-              <button className="btn btn-primary-dark btn-sm" onClick={() => { setResting(false); setRestLeft(0); }}>Пропустить</button>
-            </div>
-          </div>
-        )}
-
-        {isExerciseDone && !resting && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
-            <button className="btn btn-ghost" onClick={addExtraSet}>
-              <Plus size={18} /> Дополнительный подход
-            </button>
-            <button className="btn btn-primary-dark" style={{ width: "100%" }} onClick={goNextExercise}>
-              {exIndex + 1 < exList.length ? <>Следующее упражнение <ArrowRight size={18} /></> : "Завершить тренировку"}
-            </button>
-          </div>
-        )}
-
-        <div className="card-dark" style={{ marginTop: 18 }}>
-          <div className="muted" style={{ marginBottom: 10 }}>Есть дискомфорт или боль?</div>
-          <div className="stepper" style={{ justifyContent: "center" }}>
-            <button onClick={() => setDiscomfort(Math.max(0, discomfort - 1))}><Minus size={18} /></button>
-            <div className="val" style={{ fontSize: "calc(22px * var(--fs-scale))" }}>{discomfort} из 10</div>
-            <button onClick={() => setDiscomfort(Math.min(10, discomfort + 1))}><Plus size={18} /></button>
-          </div>
-          {discomfort >= 4 ? (
-            <div className="card-stone" style={{ marginTop: 12, background: "rgba(168,95,82,0.16)" }}>
-              <AlertTriangle size={16} color="var(--error)" />
-              <div style={{ color: "var(--error)", marginTop: 6 }}>Остановите упражнение, зафиксируйте симптом и выберите облегчённый вариант. Приложение не ставит диагноз.</div>
-            </div>
-          ) : (
-            <div className="muted" style={{ textAlign: "center", marginTop: 8 }}>Нет дискомфорта</div>
           )}
         </div>
+      );
+    }
 
-        {showTech && (
-          <ExerciseInfoSheet ex={ex} activeVariantId={exLog.variantId} onClose={() => setShowTech(false)} />
-        )}
+    function NutritionScreen({ state, setState }) {
+      return <div className="r50-scroll"><div className="h1">Питание</div><div className="card-dark"><p className="muted">Цель: {state.nutritionGoals.protein}г белка, {state.nutritionGoals.calories} ккал</p></div></div>;
+    }
 
-        {showReplace && (
-          <div className="sheet-backdrop" onClick={() => setShowReplace(false)}>
-            <div className="sheet" onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div className="h2" style={{ marginBottom: 0 }}>Заменить упражнение</div>
-                <button className="tapzone" onClick={() => setShowReplace(false)}><X size={22} /></button>
-              </div>
-              {ex.alternatives.map((alt, i) => (
-                <button key={i} className="choice-btn-dark" style={{ width: "100%", marginBottom: 10 }}
-                  onClick={() => applyReplacement(alt)}>
-                  <div className="lbl">{String.fromCharCode(65 + i)}. {alt.name}</div>
-                  {alt.note && <div className="sub">{alt.note}</div>}
-                </button>
-              ))}
-              <button className="choice-btn-dark" style={{ width: "100%", marginBottom: 10, borderColor: "rgba(255,255,255,0.05)" }} onClick={() => applyReplacement({ name: ex.name })}>
-                 <div className="lbl"><RefreshCw size={16}/> Вернуться к оригиналу</div>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+    function ProgressScreen({ state }) {
+      return <div className="r50-scroll"><div className="h1">Прогресс</div><div className="card-dark"><div className="muted">Всего тренировок: {state.workoutHistory.length}</div></div></div>;
+    }
 
-/* ======================================================================
-   ПИТАНИЕ
-====================================================================== */
-
-function NutritionScreen({ state, setState }) {
-  const [tab, setTab] = useState("day");
-  const date = todayISO();
-  const log = state.nutritionLog[date] || { protein: 0, calories: 0, meals: [], mood: {} };
-
-  const addProtein = (amount) => {
-    setState((s) => {
-      const cur = s.nutritionLog[date] || { protein: 0, calories: 0, meals: [] };
-      return { ...s, nutritionLog: { ...s.nutritionLog, [date]: { ...cur, protein: (cur.protein || 0) + amount } } };
-    });
-  };
-
-  const proteinPct = Math.min(100, Math.round(((log.protein || 0) / (state.nutritionGoals.protein || 1)) * 100));
-
-  return (
-    <div className="r50-scroll">
-      <div className="h1" style={{ fontSize: "calc(24px * var(--fs-scale))" }}>Питание</div>
-      <div className="tabs">
-        {[["day", "День"], ["menu", "Меню"], ["foods", "Продукты и блюда"], ["shopping", "Покупки"]].map(([k, l]) => (
-          <button key={k} className={`tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{l}</button>
-        ))}
-      </div>
-
-      {tab === "day" && (
-        <div>
-          <div className="card-dark" style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <ProgressRing pct={proteinPct} />
-            <div>
-              <div className="bignum">{log.protein || 0} г</div>
-              <div className="muted">из {state.nutritionGoals.protein} г белка</div>
-            </div>
-          </div>
+    function MoreScreen({ state, setState }) {
+      return (
+        <div className="r50-scroll">
+          <div className="h1">Ещё</div>
           <div className="card-dark">
-            <div className="muted">Калории</div>
-            <div className="bignum" style={{ marginTop: 4 }}>{log.calories || 0} / {state.nutritionGoals.calories}</div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              {log.calories > state.nutritionGoals.calories ? "выше ориентира — посмотрим на среднее за неделю" : "в рамках ориентира"}
-            </div>
+            <div style={{ fontWeight: 700 }}>{state.profile.name}, {state.profile.age} лет</div>
           </div>
-          <div className="card-dark">
-            <div className="muted" style={{ marginBottom: 10 }}>Быстрое добавление белка</div>
-            <div className="chip-row">
-              {[10, 20, 30, 40].map((a) => (
-                <button key={a} className="chip" onClick={() => addProtein(a)}>+{a} г</button>
-              ))}
-            </div>
-          </div>
-          <div className="card-dark">
-            <div className="muted" style={{ marginBottom: 10 }}>Самочувствие</div>
-            {["Голод", "Насыщение", "Энергия", "Тяга к сладкому"].map((label) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span>{label}</span><span className="muted">3/5</span>
-              </div>
-            ))}
+          <div className="card-dark" onClick={() => { localStorage.removeItem(STORAGE_KEY); location.reload(); }} style={{ cursor: "pointer" }}>
+            <span style={{ color: "var(--error)" }}>Сбросить все данные</span>
           </div>
         </div>
-      )}
+      );
+    }
 
-      {tab === "menu" && (
-        <div className="card-dark">
-          <p className="muted">Конструктор недельного меню, шаблоны завтрака/обеда/ужина и копирование дня появятся здесь по мере наполнения вашей библиотеки блюд.</p>
-          <button className="btn btn-ghost" style={{ width: "100%" }}>Скопировать вчерашний день</button>
+    function App() {
+      const [state, setState] = useState(loadState);
+      const [screen, setScreen] = useState("today");
+
+      useEffect(() => { saveState(state); }, [state]);
+
+      const startWorkout = (letter) => {
+        const week = weekNumberFor(state);
+        setState((s) => ({ ...s, activeSession: { letter, week, exerciseIndex: 0, log: {}, startedAt: Date.now() } }));
+      };
+
+      if (!state.onboarded) return <Onboarding state={state} setState={setState} />;
+      if (state.activeSession) return <WorkoutSession state={state} setState={setState} onExit={() => setState((s) => ({ ...s, activeSession: null }))} />;
+
+      return (
+        <div className="r50-root">
+          {screen === "today" && <TodayScreen state={state} setState={setState} startWorkout={startWorkout} />}
+          {screen === "workouts" && <WorkoutsScreen state={state} setState={setState} startWorkout={startWorkout} />}
+          {screen === "nutrition" && <NutritionScreen state={state} setState={setState} />}
+          {screen === "progress" && <ProgressScreen state={state} setState={setState} />}
+          {screen === "more" && <MoreScreen state={state} setState={setState} />}
+          <BottomNav screen={screen} setScreen={setScreen} />
         </div>
-      )}
+      );
+    }
 
-      {tab === "foods" && (
-        <div className="card-dark">
-          <p className="muted" style={{ marginBottom: 10 }}>Пример — замените на свой рацион.</p>
-          {[
-            { name: "Творог 5%", protein: 18, kcal: 140 },
-            { name: "Куриная грудка", protein: 31, kcal: 165 },
-            { name: "Греческий йогурт", protein: 10, kcal: 90 },
-          ].map((f, i) => (
-            <div key={i} className="card-stone" style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontWeight: 600 }}>{f.name}</span>
-              <span className="muted-dark">{f.protein} г белка · {f.kcal} ккал</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {tab === "shopping" && (
-        <div className="card-dark">
-          <p className="muted">Список покупок формируется из недельного меню.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ======================================================================
-   ПРОГРЕСС
-====================================================================== */
-
-function ProgressScreen({ state, setState }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const measurements = state.measurements;
-  const weights = measurements.filter((m) => m.weight).map((m) => ({ value: m.weight, date: m.date }));
-  const waists = measurements.filter((m) => m.waist).map((m) => ({ value: m.waist, date: m.date }));
-
-  return (
-    <div className="r50-scroll">
-      <div className="h1" style={{ fontSize: "calc(24px * var(--fs-scale))" }}>Прогресс</div>
-
-      <div className="card-dark">
-        <SectionTitle right={<button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(true)}><Plus size={16} />Замер</button>}>Вес, недельное среднее</SectionTitle>
-        <MiniLineChart points={weights} />
-      </div>
-
-      <div className="card-dark">
-        <SectionTitle>Талия</SectionTitle>
-        <MiniLineChart points={waists} color="var(--brass)" />
-      </div>
-
-      <div className="card-dark">
-        <SectionTitle>Сила: рабочие веса</SectionTitle>
-        {Object.entries(state.workingWeights).filter(([, v]) => v && v.value != null).slice(0, 5).map(([key, v]) => (
-          <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
-            <span className="muted">{key.split("_").slice(1).join(" ")}</span>
-            <span style={{ fontWeight: 700 }}>{v.value} {v.unit === "kg" ? "кг" : v.unit === "kgEach" ? "кг в каждой руке" : ""}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="card-dark">
-        <SectionTitle>Регулярность</SectionTitle>
-        <div className="muted">Всего тренировок: {state.workoutHistory.length}</div>
-      </div>
-
-      <div className="card-dark">
-        <SectionTitle>Фото</SectionTitle>
-        <p className="muted">Загружайте фото спереди, сбоку и сзади в одинаковых условиях. Сравнение «до / сейчас» и метки этапов помогают отделить эффект процедур от результата программы.</p>
-        <button className="btn btn-ghost" style={{ width: "100%" }}><Camera size={18} /> Добавить фото</button>
-      </div>
-
-      {showAdd && <AddMeasurementSheet state={state} setState={setState} onClose={() => setShowAdd(false)} />}
-    </div>
-  );
-}
-
-function AddMeasurementSheet({ state, setState, onClose }) {
-  const [form, setForm] = useState({ weight: "", bodyFat: "", waist: "", belly: "", hips: "", thigh: "", arm: "", note: "" });
-  const save = () => {
-    const rec = { date: todayISO(), ...Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v === "" ? null : parseFloat(v) || v])) };
-    setState((s) => ({ ...s, measurements: [...s.measurements, rec] }));
-    onClose();
-  };
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="h2">Новый замер</div>
-        {[["weight", "Вес, кг"], ["bodyFat", "% жира"], ["waist", "Талия, см"], ["belly", "Живот, см"], ["hips", "Бёдра, см"], ["thigh", "Обхват бедра, см"], ["arm", "Обхват руки, см"]].map(([k, label]) => (
-          <div key={k} style={{ marginBottom: 10 }}>
-            <label className="label-field">{label}</label>
-            <input className="input-field" type="number" value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
-          </div>
-        ))}
-        <label className="label-field">Комментарий о посадке одежды</label>
-        <input className="input-field" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} style={{ marginBottom: 14 }} />
-        <button className="btn btn-primary-dark" style={{ width: "100%" }} onClick={save}>Сохранить</button>
-      </div>
-    </div>
-  );
-}
-
-/* ======================================================================
-   ЕЩЁ
-====================================================================== */
-
-function MoreScreen({ state, setState }) {
-  const [openHelp, setOpenHelp] = useState(false);
-  const [openReset, setOpenReset] = useState(false);
-
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "recomposition50-backup.json"; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importData = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        setState({ ...defaultState(), ...parsed });
-      } catch (err) {
-        alert("Не удалось прочитать файл резервной копии.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const setTextSize = (size) => setState((s) => ({ ...s, settings: { ...s.settings, textSize: size } }));
-
-  return (
-    <div className="r50-scroll">
-      <div className="h1" style={{ fontSize: "calc(24px * var(--fs-scale))" }}>Ещё</div>
-
-      <div className="card-dark">
-        <div className="muted" style={{ marginBottom: 6 }}>Профиль</div>
-        <div style={{ fontWeight: 700, fontSize: "calc(19px * var(--fs-scale))" }}>{state.profile.name}, {state.profile.age} лет</div>
-        <div className="muted">{state.profile.height} см · {state.profile.weight} кг</div>
-      </div>
-
-      <div className="card-dark">
-        <div className="muted" style={{ marginBottom: 10 }}>Доступность и размер интерфейса</div>
-        <div className="choice-row">
-          {[["normal", "Обычный"], ["large", "Крупный 45+"], ["max", "Максимальный"]].map(([key, label]) => (
-            <button key={key} className={`choice-btn ${state.settings.textSize === key ? "selected" : ""}`} onClick={() => setTextSize(key)}>
-              <div className="lbl">{state.settings.textSize === key && <Check size={16} />} {label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="card-dark">
-        <div className="muted" style={{ marginBottom: 10 }}>Резервная копия</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={exportData}><Download size={16} /> Экспорт</button>
-          <label className="btn btn-ghost btn-sm" style={{ flex: 1, cursor: "pointer" }}>
-            <Upload size={16} /> Импорт
-            <input type="file" accept="application/json" onChange={importData} style={{ display: "none" }} />
-          </label>
-        </div>
-      </div>
-
-      <div className="card-dark" onClick={() => setOpenHelp(true)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>Справка о показателях</span><ChevronRight size={18} />
-      </div>
-
-      {!state.demoDataAdded && (
-        <div className="card-dark" onClick={() => setState((s) => addDemoData(s))} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span><Sparkles size={16} style={{ marginRight: 8 }} />Добавить демо-неделю</span><ChevronRight size={18} />
-        </div>
-      )}
-      {state.demoDataAdded && (
-        <div className="card-dark" onClick={() => setState((s) => removeDemoData(s))} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Удалить демо-данные</span><Trash2 size={16} />
-        </div>
-      )}
-
-      <div className="card-dark" onClick={() => setOpenReset(true)} style={{ cursor: "pointer" }}>
-        <span style={{ color: "var(--error)" }}><Trash2 size={16} style={{ marginRight: 8 }} />Сбросить все данные</span>
-      </div>
-
-      {openHelp && (
-        <div className="sheet-backdrop" onClick={() => setOpenHelp(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="h2">Справка</div>
-            <p className="muted" style={{ marginBottom: 12 }}>Процент жира на бытовых весах точен не абсолютно, а только в динамике при одинаковых условиях измерения — поэтому мы всегда смотрим на тренд, а не на разовое число.</p>
-            <p className="muted" style={{ marginBottom: 12 }}>«Повторов в запасе» — это то, сколько ещё чистых, технически верных повторов вы могли бы сделать. Мышечный предел — это усталость мышцы, а не боль в суставе, головокружение, одышка или потеря равновесия; при этих симптомах стоит остановиться независимо от числа повторов.</p>
-            <p className="muted" style={{ marginBottom: 12 }}>Одна пропущенная тренировка не обнуляет неделю — программа смотрит на тенденцию за месяцы, а не на один день.</p>
-            <p className="muted" style={{ marginBottom: 12 }}>Жир не уходит локально только с рук или бёдер: тело расходует его по своей собственной логике, а силовые тренировки укрепляют форму именно в прорабатываемых зонах.</p>
-            <p className="muted">Приложение не заменяет врача, реабилитолога или персонального тренера при боли и медицинских ограничениях.</p>
-          </div>
-        </div>
-      )}
-
-      {openReset && (
-        <div className="sheet-backdrop" onClick={() => setOpenReset(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="h2">Сбросить все данные?</div>
-            <p className="muted" style={{ marginBottom: 16 }}>Это действие необратимо. Все тренировки, замеры и настройки будут удалены.</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setOpenReset(false)}>Отмена</button>
-              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => { localStorage.removeItem(STORAGE_KEY); setState(defaultState()); setOpenReset(false); }}>Сбросить</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function addDemoData(s) {
-  const demoDate = todayISO();
-  const demoHistory = {
-    id: "demo-1", letter: "A", date: demoDate, week: 1, isStarting: false, demo: true,
-    exercises: {
-      A1_hipThrust: { variantId: "A1_hipThrust", sets: [{ weight: 5, reps: 10, feel: "Нормально", rir: 3, done: true }, { weight: 5, reps: 9, feel: "Тяжело", rir: 2, done: true }] },
-    },
-    cardio: null, readiness: { sleep: 4, energy: 3, stress: 2, soreness: 2 }, notes: "",
-  };
-  return {
-    ...s,
-    demoDataAdded: true,
-    workoutHistory: [...s.workoutHistory, demoHistory],
-    measurements: [...s.measurements,
-      { date: demoDate, weight: 70.1, waist: 84, note: "демо" },
-    ],
-    nutritionLog: { ...s.nutritionLog, [demoDate]: { protein: 78, calories: 1500, meals: [] } },
-  };
-}
-function removeDemoData(s) {
-  return {
-    ...s, demoDataAdded: false,
-    workoutHistory: s.workoutHistory.filter((h) => !h.demo),
-    measurements: s.measurements.filter((m) => m.note !== "демо"),
-  };
-}
-
-/* ======================================================================
-   ГЛАВНОЕ ПРИЛОЖЕНИЕ
-====================================================================== */
-
-export default function App() {
-  const [state, setState] = useState(loadState);
-  const [screen, setScreen] = useState("today");
-
-  useEffect(() => { saveState(state); }, [state]);
-
-  useEffect(() => {
-    // Подключаем шрифты динамически
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=Manrope:wght@400;600;700&display=swap";
-    document.head.appendChild(link);
-    return () => { document.head.removeChild(link); };
-  }, []);
-
-  const startWorkout = (letter) => {
-    const week = weekNumberFor(state);
-    setState((s) => ({ ...s, activeSession: { letter, week, exerciseIndex: 0, log: {}, startedAt: Date.now() } }));
-  };
-
-  const textSizeClass = state.settings.textSize === "normal" ? "tx-normal" : state.settings.textSize === "max" ? "tx-max" : "tx-large";
-
-  if (!state.onboarded) {
-    return (
-      <div className={textSizeClass}>
-        <style>{CSS}</style>
-        <Onboarding state={state} setState={setState} />
-      </div>
-    );
-  }
-
-  if (state.activeSession) {
-    return (
-      <div className={textSizeClass}>
-        <style>{CSS}</style>
-        <WorkoutSession state={state} setState={setState} onExit={() => setState((s) => ({ ...s, activeSession: null }))} />
-      </div>
-    );
-  }
-
-  return (
-    <div className={textSizeClass}>
-      <style>{CSS}</style>
-      <div className="r50-root">
-        {screen === "today" && <TodayScreen state={state} setState={setState} startWorkout={startWorkout} />}
-        {screen === "workouts" && <WorkoutsScreen state={state} setState={setState} startWorkout={startWorkout} />}
-        {screen === "nutrition" && <NutritionScreen state={state} setState={setState} />}
-        {screen === "progress" && <ProgressScreen state={state} setState={setState} />}
-        {screen === "more" && <MoreScreen state={state} setState={setState} />}
-        <BottomNav screen={screen} setScreen={setScreen} />
-      </div>
-    </div>
-  );
-}
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
